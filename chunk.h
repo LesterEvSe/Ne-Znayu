@@ -1,0 +1,26 @@
+#ifndef PL_CHUNK_H
+#define PL_CHUNK_H
+
+#include "common.h"
+#include "value.h"
+
+// Can be expanded over time
+typedef enum {
+  OP_CONSTANT,
+  OP_RETURN,
+} OpCode;
+
+typedef struct {
+  int length;
+  int capacity;
+  uint8_t *code;
+  int *lines;  // To track errors
+  ValueArray constants;
+} Chunk;
+
+void init_chunk(Chunk *chunk);
+void free_chunk(Chunk *chunk);
+void write_chunk(Chunk *chunk, uint8_t byte, int line);
+int add_constant(Chunk *chunk, Value value);
+
+#endif // PL_CHUNK_H

@@ -1,2 +1,2 @@
-# Ne-Znayu
+# NeZnayu
 Programming language
