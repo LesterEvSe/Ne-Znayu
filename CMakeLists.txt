@@ -8,5 +8,7 @@ set(PROJECT_SOURCES
     memory.c
     debug.c
     value.c
+    vm.c
+    common.h
 )
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
