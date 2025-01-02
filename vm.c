@@ -3,6 +3,7 @@
 #include "common.h"
 #include "debug.h"
 #include "vm.h"
+#include "memory.h"
 
 // Can be recoded with pointer variable, which pass from main func
 VM vm;
@@ -12,13 +13,24 @@ static void reset_stack() {
 }
 
 void init_vm() {
-  reset_stack();
+  vm.capacity = GROW_CAPACITY(0);
+  vm.stack_top = vm.stack = GROW_ARRAY(Value, vm.stack, 0, vm.capacity);
+  // reset_stack();
 }
 
 void free_vm() {
+  FREE_ARRAY(Value, vm.stack, vm.capacity);
+  init_vm();
 }
 
+//
 void push(Value value) {
+  if (vm.stack_top == vm.stack + vm.capacity) {
+    int old_capacity = vm.capacity;
+    vm.capacity = GROW_CAPACITY(old_capacity);
+    vm.stack = GROW_ARRAY(Value, vm.stack, old_capacity, vm.capacity);
+    vm.stack_top = vm.stack + old_capacity;
+  }
   *vm.stack_top++ = value;
 }
 
@@ -42,12 +54,6 @@ static InterpretResult run() {
     *temp = *temp op *(temp+1); \
     --vm.stack_top; \
   } while (false)
-
-  /*
-  double b = pop(); \
-  double a = pop(); \
-  push(a op b); \
-  */
 
   // First instruction is opcode, so we do 'decoding/dispatching' the instruction
   for (;;) {

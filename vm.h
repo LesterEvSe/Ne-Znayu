@@ -5,7 +5,7 @@
 #include "value.h"
 
 // Can dynamically grow stack, but keep it simple for now
-#define STACK_MAX 256
+//#define STACK_MAX 256
 
 typedef struct {
   Chunk *chunk;
@@ -14,7 +14,9 @@ typedef struct {
   // This is Instruction Pointer (x86, x64, etc. call it PC - program counter)
   uint8_t *ip;
 
-  Value stack[STACK_MAX];
+  int capacity;
+  Value *stack; // Value stack[STACK_MAX];
+
   Value *stack_top;
 } VM;
 
