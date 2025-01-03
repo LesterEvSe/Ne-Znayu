@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include "common.h"
+#include "compiler.h"
 #include "debug.h"
 #include "vm.h"
 #include "memory.h"
@@ -23,7 +24,6 @@ void free_vm() {
   init_vm();
 }
 
-//
 void push(Value value) {
   if (vm.stack_top == vm.stack + vm.capacity) {
     int old_capacity = vm.capacity;
@@ -97,8 +97,7 @@ static InterpretResult run() {
 #undef BINARY_OP
 }
 
-InterpretResult interpret(Chunk *chunk) {
-    vm.chunk = chunk;
-    vm.ip = vm.chunk->code;
-    return run();
+InterpretResult interpret(const char *source) {
+  compile(source);
+  return INTERPRET_OK;
 }

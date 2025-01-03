@@ -10,5 +10,7 @@ set(PROJECT_SOURCES
     value.c
     vm.c
     common.h
+    compiler.c
+    scanner.c
 )
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
