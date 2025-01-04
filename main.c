@@ -39,7 +39,7 @@ static char *read_file(const char *path) {
 
   char *buffer = malloc(file_size + 1);
   if (buffer == NULL) {
-    fprintf(stderr, "Not enough memory to read \"%s\".\n", path)
+    fprintf(stderr, "Not enough memory to read \"%s\".\n", path);
     exit(74);
   }
 
