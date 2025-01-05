@@ -9,8 +9,12 @@ set(PROJECT_SOURCES
     debug.c
     value.c
     vm.c
-    common.h
     compiler.c
     scanner.c
 )
-add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
+
+set(PROJECT_HEADERS
+    common.h
+)
+
+add_executable(${PROJECT_NAME} ${PROJECT_SOURCES} ${PROJECT_HEADERS})
