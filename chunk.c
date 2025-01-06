@@ -4,8 +4,7 @@
 #include "memory.h"
 
 void init_chunk(Chunk *chunk) {
-  chunk->length = 0;
-  chunk->capacity = 0;
+  chunk->length = chunk->capacity = 0;
   chunk->code = NULL;
   chunk->lines = NULL;
   init_value_array(&chunk->constants);

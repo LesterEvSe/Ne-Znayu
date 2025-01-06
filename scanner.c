@@ -33,9 +33,7 @@ static bool is_at_end() {
 }
 
 static char advance() {
-  // return scanner.current++;
-  scanner.current++;
-  return scanner.current[-1];
+  return *scanner.current++;
 }
 
 static char peek() {
