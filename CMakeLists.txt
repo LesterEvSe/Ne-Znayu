@@ -11,6 +11,7 @@ set(PROJECT_SOURCES
     vm.c
     compiler.c
     scanner.c
+    object.c
 )
 
 set(PROJECT_HEADERS

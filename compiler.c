@@ -115,7 +115,6 @@ static uint8_t make_constant(Value value) {
     error("Too many constants in one chunk.");
     return 0;
   }
-
   return (uint8_t)constant;
 }
 
@@ -173,8 +172,14 @@ static void grouping() {
 
 static void number() {
   // str to double
-  double value = strtod(parser.previous.start, NULL);
+  const double value = strtod(parser.previous.start, NULL);
   emit_constant(NUMBER_VAL(value));
+}
+
+// If language supported characters like \n or another, then we'd translate those here
+static void string() {
+  emit_constant(OBJ_VAL((Obj*)copy_string(parser.previous.start + 1,
+                                    parser.previous.length - 2)));
 }
 
 static void unary() {
@@ -215,7 +220,7 @@ ParseRule rules[] = {
   [TOKEN_LESS]          = {NULL,     binary, PREC_COMPARISON},
   [TOKEN_LESS_EQUAL]    = {NULL,     binary, PREC_COMPARISON},
   [TOKEN_IDENTIFIER]    = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_STRING]        = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_STRING]        = {string,   NULL,   PREC_NONE},
   [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
   [TOKEN_AND]           = {NULL,     NULL,   PREC_NONE},
   [TOKEN_AGENT]         = {NULL,     NULL,   PREC_NONE},

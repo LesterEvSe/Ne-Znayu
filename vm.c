@@ -1,11 +1,13 @@
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "common.h"
 #include "compiler.h"
 #include "debug.h"
-#include "vm.h"
+#include "object.h"
 #include "memory.h"
+#include "vm.h"
 
 // Can be recoded with pointer variable, which pass from main func
 VM vm;
@@ -25,19 +27,21 @@ static void runtime_error(const char *format, ...) {
   fputs("\n", stderr);
 
   // Because incorrect instruction before current
-  size_t instruction = vm.ip - vm.chunk->code - 1;
-  int line = vm.chunk->lines[instruction];
+  const size_t instruction = vm.ip - vm.chunk->code - 1;
+  const int line = vm.chunk->lines[instruction];
   fprintf(stderr, "[line %d] in script\n", line);
   reset_stack();
 }
 
 void init_vm() {
   reset_stack();
+  vm.objects = NULL;
 }
 
 void free_vm() {
   FREE_ARRAY(Value, vm.stack, vm.capacity);
-  init_vm();
+  reset_stack();
+  free_objects();
 }
 
 void push(Value value) {
@@ -62,6 +66,19 @@ static bool is_falsey(Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
+static void concatenate() {
+  ObjString *b = AS_STRING(pop());
+  ObjString *a = AS_STRING(pop());
+
+  const int length = a->length + b->length;
+  char *chars = ALLOCATE(char, length + 1);
+  memcpy(chars, a->chars, a->length);
+  memcpy(chars + a->length, b->chars, b->length);
+  chars[length] = '\0';
+
+  *vm.stack_top++ = OBJ_VAL((Obj*)take_string(chars, length));
+}
+
 void negate() {
   Value *temp = vm.stack_top-1;
   *temp = NUMBER_VAL(-AS_NUMBER(*temp));
@@ -79,9 +96,9 @@ static InterpretResult run() {
       runtime_error("Operands must be numbers."); \
       return INTERPRET_RUNTIME_ERROR; \
     } \
-    Value *temp = vm.stack_top-2; \
-    *temp = ValueType(AS_NUMBER(*temp) op AS_NUMBER(*(temp+1))); \
-    --vm.stack_top; \
+    double b = AS_NUMBER(pop()); \
+    double a = AS_NUMBER(pop()); \
+    *vm.stack_top++ = ValueType(a op b); \
   } while (false)
 
   // First instruction is opcode, so we do 'decoding/dispatching' the instruction
@@ -111,17 +128,30 @@ static InterpretResult run() {
       case OP_EQUAL: {
         Value b = pop();
         Value a = pop();
-        push(BOOL_VAL(values_equal(a, b)));
+        *vm.stack_top++ = BOOL_VAL(values_equal(a, b));
         break;
       }
       case OP_GREATER:  BINARY_OP(BOOL_VAL, >); break;
       case OP_LESS:     BINARY_OP(BOOL_VAL, <); break;
-      case OP_ADD:      BINARY_OP(NUMBER_VAL, +); break;
+      case OP_ADD: {
+        if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
+          concatenate();
+        } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
+          const double b = AS_NUMBER(pop());
+          const double a = AS_NUMBER(pop());
+          *vm.stack_top++ = NUMBER_VAL(a + b);
+        } else {
+          runtime_error(
+            "Operands must be two numbers or two strings");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+      }
       case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); break;
       case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); break;
       case OP_DIVIDE:   BINARY_OP(NUMBER_VAL, /); break;
       case OP_NOT:
-        push(BOOL_VAL(is_falsey(pop())));
+        Value *temp = vm.stack_top-1;
+        *temp = BOOL_VAL(is_falsey(*temp));
         break;
       case OP_NEGATE:
         if (!IS_NUMBER(peek(0))) {
