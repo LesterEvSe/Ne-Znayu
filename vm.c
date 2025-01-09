@@ -67,9 +67,12 @@ static bool is_falsey(Value value) {
 }
 
 static void concatenate() {
-  ObjString *b = AS_STRING(pop());
-  ObjString *a = AS_STRING(pop());
+  const ObjString *b = AS_STRING(pop());
+  const ObjString *a = AS_STRING(pop());
 
+  *vm.stack_top++ = OBJ_VAL((Obj*)string_concat(a, b));
+
+  /* TODO maybe delete later
   const int length = a->length + b->length;
   char *chars = ALLOCATE(char, length + 1);
   memcpy(chars, a->chars, a->length);
@@ -77,6 +80,7 @@ static void concatenate() {
   chars[length] = '\0';
 
   *vm.stack_top++ = OBJ_VAL((Obj*)take_string(chars, length));
+  */
 }
 
 void negate() {

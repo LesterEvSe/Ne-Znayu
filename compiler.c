@@ -138,7 +138,7 @@ static void parse_precedence(Precedence precedence);
 
 static void binary() {
   TokenType operator_type = parser.previous.type;
-  ParseRule *rule = get_rule(operator_type);
+  const ParseRule *rule = get_rule(operator_type);
   parse_precedence((Precedence)(rule->precedence + 1));
 
   switch (operator_type) {
@@ -245,7 +245,7 @@ ParseRule rules[] = {
 // Starts at the current token and parses any expression at the given precedence level or higher
 static void parse_precedence(Precedence precedence) {
   advance();
-  ParseFn prefix_rule = get_rule(parser.previous.type)->prefix;
+  const ParseFn prefix_rule = get_rule(parser.previous.type)->prefix;
   if (prefix_rule == NULL) {
     error("Expect expression.");
     return;
@@ -256,7 +256,7 @@ static void parse_precedence(Precedence precedence) {
   // Process all operators with precedence higher than current
   while (precedence <= get_rule(parser.current.type)->precedence) {
     advance();
-    ParseFn infix_rule = get_rule(parser.previous.type)->infix;
+    const ParseFn infix_rule = get_rule(parser.previous.type)->infix;
     infix_rule();
   }
 }

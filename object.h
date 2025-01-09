@@ -27,10 +27,16 @@ struct Obj {
 struct ObjString {
   Obj obj;
   int length;
-  char *chars;
+
+  // Flexible Array Member (FAM) optimization - https://en.wikipedia.org/wiki/Flexible_array_member
+  // Must be the last element of the struct
+  char chars[];
 };
 
-ObjString *take_string(char *chars, int length); // take ownership
+ObjString *string_concat(const ObjString *a, const ObjString *b);
+
+// TODO maybe delete later
+// ObjString *take_string(char *chars, int length); // take ownership
 ObjString *copy_string(const char *chars, int length); // copy
 void print_object(Value value);
 
