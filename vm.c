@@ -149,6 +149,7 @@ static InterpretResult run() {
             "Operands must be two numbers or two strings");
           return INTERPRET_RUNTIME_ERROR;
         }
+        break;
       }
       case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); break;
       case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); break;
