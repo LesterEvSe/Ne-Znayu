@@ -19,7 +19,7 @@ typedef enum {
 // This is similar to linked list, but not an add-on
 struct Obj {
   ObjType type;
-  struct Obj *next;
+  Obj *next;
 };
 
 // Here, we can safely cast ObjString* to Obj*

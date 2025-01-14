@@ -28,14 +28,12 @@ static Entry *find_entry(Entry *entries, const int capacity, const ObjString *ke
       if (IS_NIL(entry->value)) {
         // Empty entry
         return tombstone != NULL ? tombstone : entry;
-      } else { // TODO Maybe can optimize?
-        if (tombstone == NULL) tombstone = entry;
+      } else if (tombstone == NULL) { // TODO Maybe can optimize?
+        tombstone = entry;
       }
     } else if (entry->key == key) {
       return entry;
     }
-
-    // Or maybe ++index %= capacity;
     index = (index + 1) % capacity;
   }
 }
@@ -124,8 +122,6 @@ ObjString *table_find_string(const Table *table, const char *chars, const int le
         memcmp(entry->key->chars, chars, length) == 0) {
       return entry->key;
     }
-
-    // TODO speed up? ++index %= table->capacity;
     index = (index + 1) % table->capacity;
   }
 }

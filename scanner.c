@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "common.h"
 #include "scanner.h"
@@ -71,7 +72,7 @@ static Token error_token(const char *message) {
 
 static void skip_whitespace() {
   for (;;) {
-    char c = peek();
+    const char c = peek();
     switch (c) {
       case ' ':
       case '\r':
@@ -107,8 +108,14 @@ static TokenType check_keyword(int start, int length,
 static TokenType identifier_type() {
   // Or maybe *scanner.start
   switch (scanner.start[0]) {
-    case 'a': return check_keyword(1, 2, "nd", TOKEN_AND);
-    case 'c': return check_keyword(1, 4, "lass", TOKEN_AGENT);
+    case 'a':
+      if (scanner.current - scanner.start == 1) {
+        switch (scanner.start[1]) {
+          case 'g': return check_keyword(2, 3, "ent", TOKEN_AGENT);
+          case 'n': return check_keyword(2, 1, "d", TOKEN_AND);
+          default:  exit(64);
+        }
+      }
     case 'e': return check_keyword(1, 3, "lse", TOKEN_ELSE);
     case 'f':
       if (scanner.current - scanner.start > 1) {
@@ -116,6 +123,7 @@ static TokenType identifier_type() {
           case 'a': return check_keyword(2, 3, "lse", TOKEN_FALSE);
           case 'c': return check_keyword(2, 1, "r", TOKEN_FOR);
           case 'u': return check_keyword(2, 2, "n", TOKEN_FUN);
+          default:  exit(64);
         }
       }
       break;
@@ -130,10 +138,12 @@ static TokenType identifier_type() {
         switch (scanner.start[1]) {
           case 'h': return check_keyword(2, 2, "is", TOKEN_THIS);
           case 'r': return check_keyword(2, 2, "ue", TOKEN_TRUE);
+          default:  exit(64);
         }
       }
     case 'v': return check_keyword(1, 2, "ar", TOKEN_VAR);
     case 'w': return check_keyword(1, 4, "hile", TOKEN_WHILE);
+    default:  exit(64);
   }
   return TOKEN_IDENTIFIER;
 }

@@ -19,14 +19,14 @@ static void repl() {
 
     // Exit with Ctrl+D on Linux/Mac or Ctrl+X on windows
     if (!fgets(line, sizeof(line), stdin)) {
-      printf("Exit\n");
+      printf("\n");
       break;
     }
 
     line[strcspn(line, "\n")] = '\0';
 
     if (strcmp(line, "exit") == 0) {
-      printf("Exiting REPL...\n");
+      printf("\n");
       break;
     }
 
@@ -72,7 +72,7 @@ static void run_file(const char *path) {
   if (result == INTERPRET_RUNTIME_ERROR) exit(70);
 }
 
-int main(int argc, char *argv[]) {
+int main(const int argc, char *argv[]) {
   init_vm();
 
   if (argc == 1) {
