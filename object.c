@@ -3,6 +3,7 @@
 
 #include "memory.h"
 #include "object.h"
+#include "table.h"
 #include "value.h"
 #include "vm.h"
 
@@ -10,7 +11,7 @@
 #define ALLOCATE_OBJ(type, object_type) \
   (type*)allocate_object(sizeof(type), object_type)
 
-static Obj *allocate_object(size_t size, ObjType type) {
+static Obj *allocate_object(const size_t size, ObjType type) {
   Obj *object = (Obj*)reallocate(NULL, 0, size);
   object->type = type;
 
@@ -37,29 +38,54 @@ ObjString *take_string(char *chars, const int length) {
 }
 */
 
+// Maybe the shortest hash
+// FNV-1 hash algorithm http://www.isthe.com/chongo/tech/comp/fnv/
+static uint32_t hash_string(const char *key, const int length) {
+  uint32_t hash = 2166136261u;
+  for (int i = 0; i < length; ++i) {
+    hash ^= (uint8_t)key[i];
+    hash *= 16777619;
+  }
+  return hash;
+}
+
 ObjString *string_concat(const ObjString *a, const ObjString *b) {
   const int length = a->length + b->length;
+  char *temp = ALLOCATE(char, length + 1);
+  memcpy(temp, a->chars, a->length);
+  memcpy(temp + a->length, b->chars, b->length);
+  temp[length] = '\0';
+  const uint32_t hash = hash_string(temp, length);
+
+  ObjString *interned = table_find_string(&vm.strings, temp, length, hash);
+  if (interned != NULL) {
+    FREE_ARRAY(char, temp, length + 1);
+    return interned;
+  }
+
   ObjString *string = (ObjString*)allocate_object(sizeof(ObjString) + length + 1, OBJ_STRING);
   string->length = length;
-  memcpy(string->chars, a->chars, a->length);
-  memcpy(string->chars + a->length, b->chars, b->length);
+  memcpy(string->chars, temp, length);
   string->chars[length] = '\0';
+  string->hash = hash;
+
+  table_set(&vm.strings, string, NIL_VAL);
+  FREE_ARRAY(char, temp, length + 1);
   return string;
 }
 
 ObjString *copy_string(const char *chars, const int length) {
   ObjString *string = (ObjString*)allocate_object(sizeof(ObjString) + length + 1, OBJ_STRING);
+  string->hash = hash_string(chars, length);
+  ObjString *interned = table_find_string(&vm.strings, chars, length, string->hash);
+  if (interned != NULL) return interned;
+
   string->length = length;
   memcpy(string->chars, chars, length);
   string->chars[length] = '\0';
-  return string;
 
-  /*
-  char *heap_chars = ALLOCATE(char, length + 1);
-  memcpy(heap_chars, chars, length);
-  heap_chars[length] = '\0';  // Come in handy, in print_object function
-  return allocate_string(heap_chars, length);
-  */
+  table_set(&vm.strings, string, NIL_VAL);
+  return string;
 }
 
 void print_object(const Value value) {

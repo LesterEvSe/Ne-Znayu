@@ -12,6 +12,7 @@ set(PROJECT_SOURCES
     compiler.c
     scanner.c
     object.c
+    table.c
 )
 
 set(PROJECT_HEADERS

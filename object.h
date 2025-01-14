@@ -27,6 +27,7 @@ struct Obj {
 struct ObjString {
   Obj obj;
   int length;
+  uint32_t hash;
 
   // Flexible Array Member (FAM) optimization - https://en.wikipedia.org/wiki/Flexible_array_member
   // Must be the last element of the struct

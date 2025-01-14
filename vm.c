@@ -36,12 +36,15 @@ static void runtime_error(const char *format, ...) {
 void init_vm() {
   reset_stack();
   vm.objects = NULL;
+  init_table(&vm.strings);
 }
 
+// TODO fix, something went wrong...
 void free_vm() {
+  free_table(&vm.strings);
+  free_objects();
   FREE_ARRAY(Value, vm.stack, vm.capacity);
   reset_stack();
-  free_objects();
 }
 
 void push(Value value) {

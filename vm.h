@@ -2,6 +2,7 @@
 #define PL_VM_H
 
 #include "chunk.h"
+#include "table.h"
 #include "value.h"
 
 // Can dynamically grow stack, but keep it simple for now
@@ -18,6 +19,10 @@ typedef struct {
   Value *stack; // Value stack[STACK_MAX];
 
   Value *stack_top;
+
+  // For String Interning
+  // Make sure that strings with the same chars have the same memory
+  Table strings;
   Obj *objects;  // head of the list
 } VM;
 
