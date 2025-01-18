@@ -19,6 +19,7 @@ typedef struct {
   Value *stack; // Value stack[STACK_MAX];
 
   Value *stack_top;
+  Table globals;
 
   // For String Interning
   // Make sure that strings with the same chars have the same memory

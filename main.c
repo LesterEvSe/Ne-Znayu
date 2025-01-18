@@ -19,14 +19,11 @@ static void repl() {
 
     // Exit with Ctrl+D on Linux/Mac or Ctrl+X on windows
     if (!fgets(line, sizeof(line), stdin)) {
-      printf("\n");
       break;
     }
 
     line[strcspn(line, "\n")] = '\0';
-
     if (strcmp(line, "exit") == 0) {
-      printf("\n");
       break;
     }
 

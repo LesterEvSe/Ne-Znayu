@@ -19,7 +19,7 @@ void init_scanner(const char *source) {
   scanner.line = 1;
 }
 
-static bool is_alpha(char c) {
+static bool is_alpha(const char c) {
   return (c >= 'a' && c <= 'z') ||
          (c >= 'A' && c <= 'Z') ||
           c == '_';
@@ -95,8 +95,8 @@ static void skip_whitespace() {
   }
 }
 
-static TokenType check_keyword(int start, int length,
-    const char *rest, TokenType type) {
+static TokenType check_keyword(const int start, const int length,
+    const char *rest, const TokenType type) {
   if (scanner.current - scanner.start == start + length &&
       memcmp(scanner.start + start, rest, length) == 0) {
     return type;
@@ -113,7 +113,6 @@ static TokenType identifier_type() {
         switch (scanner.start[1]) {
           case 'g': return check_keyword(2, 3, "ent", TOKEN_AGENT);
           case 'n': return check_keyword(2, 1, "d", TOKEN_AND);
-          default:  exit(64);
         }
       }
     case 'e': return check_keyword(1, 3, "lse", TOKEN_ELSE);
@@ -123,11 +122,18 @@ static TokenType identifier_type() {
           case 'a': return check_keyword(2, 3, "lse", TOKEN_FALSE);
           case 'c': return check_keyword(2, 1, "r", TOKEN_FOR);
           case 'u': return check_keyword(2, 2, "n", TOKEN_FUN);
-          default:  exit(64);
         }
       }
       break;
     case 'i': return check_keyword(1, 1, "f", TOKEN_IF);
+    case 'l': {
+      return check_keyword(1, 2, "et", TOKEN_LET);
+
+      // TODO think about it
+      const uint8_t type = check_keyword(1, 6, "et mut", TOKEN_LET_MUT);
+      if (type != TOKEN_IDENTIFIER) return type;
+      return check_keyword(1, 2, "et", TOKEN_LET);
+    }
     case 'n': return check_keyword(1, 2, "il", TOKEN_NIL);
     case 'o': return check_keyword(1, 1, "r", TOKEN_OR);
     case 'p': return check_keyword(1, 4, "rint", TOKEN_PRINT);
@@ -138,12 +144,9 @@ static TokenType identifier_type() {
         switch (scanner.start[1]) {
           case 'h': return check_keyword(2, 2, "is", TOKEN_THIS);
           case 'r': return check_keyword(2, 2, "ue", TOKEN_TRUE);
-          default:  exit(64);
         }
       }
-    case 'v': return check_keyword(1, 2, "ar", TOKEN_VAR);
     case 'w': return check_keyword(1, 4, "hile", TOKEN_WHILE);
-    default:  exit(64);
   }
   return TOKEN_IDENTIFIER;
 }
@@ -213,6 +216,4 @@ Token scan_token() {
     case '"': return string();
     default : return error_token("Unexpected character.");
   }
-
-  return error_token("Unexpected character.");
 }

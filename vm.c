@@ -36,20 +36,21 @@ static void runtime_error(const char *format, ...) {
 void init_vm() {
   reset_stack();
   vm.objects = NULL;
+  init_table(&vm.globals);
   init_table(&vm.strings);
 }
 
-// TODO fix, something went wrong...
 void free_vm() {
+  free_table(&vm.globals);
   free_table(&vm.strings);
   free_objects();
   FREE_ARRAY(Value, vm.stack, vm.capacity);
   reset_stack();
 }
 
-void push(Value value) {
+void push(const Value value) {
   if (vm.stack_top == vm.stack + vm.capacity) {
-    int old_capacity = vm.capacity;
+    const int old_capacity = vm.capacity;
     vm.capacity = GROW_CAPACITY(old_capacity);
     vm.stack = GROW_ARRAY(Value, vm.stack, old_capacity, vm.capacity);
     vm.stack_top = vm.stack + old_capacity;
@@ -65,25 +66,14 @@ static Value peek(int distance) {
   return vm.stack_top[-1 - distance];
 }
 
-static bool is_falsey(Value value) {
+static bool is_falsey(const Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
 static void concatenate() {
   const ObjString *b = AS_STRING(pop());
   const ObjString *a = AS_STRING(pop());
-
   *vm.stack_top++ = OBJ_VAL((Obj*)string_concat(a, b));
-
-  /* TODO maybe delete later
-  const int length = a->length + b->length;
-  char *chars = ALLOCATE(char, length + 1);
-  memcpy(chars, a->chars, a->length);
-  memcpy(chars + a->length, b->chars, b->length);
-  chars[length] = '\0';
-
-  *vm.stack_top++ = OBJ_VAL((Obj*)take_string(chars, length));
-  */
 }
 
 void negate() {
@@ -97,6 +87,7 @@ void negate() {
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip++)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
+#define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(ValueType, op) \
   do { \
     if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
@@ -129,12 +120,41 @@ static InterpretResult run() {
         push(constant);
         break;
       }
-      case OP_NIL:      push(NIL_VAL); break;
-      case OP_TRUE:     push(BOOL_VAL(true)); break;
-      case OP_FALSE:    push(BOOL_VAL(false)); break;
+      case OP_NIL:   push(NIL_VAL); break;
+      case OP_TRUE:  push(BOOL_VAL(true)); break;
+      case OP_FALSE: push(BOOL_VAL(false)); break;
+      case OP_POP:   pop(); break;
+      case OP_GET_GLOBAL: {
+        ObjString *name = READ_STRING();
+        Value value;
+        if (!table_get(&vm.globals, name, &value)) {
+          runtime_error("Undefined variable '%s'", name->chars);
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        push(value);
+        break;
+      }
+      case OP_DEFINE_GLOBAL: {
+        ObjString *name = READ_STRING();
+
+        // Warn! Don't pop in set, because of future garbage collector work
+        table_set(&vm.globals, name, peek(0));
+        pop();
+        break;
+      }
+      case OP_SET_GLOBAL: {
+        ObjString *name = READ_STRING();
+        // If new key, then variable is not defined, so runtime error
+        if (table_set(&vm.globals, name, peek(0))) {
+          table_delete(&vm.globals, name); // delete to prevent errors in REPL
+          runtime_error("Undefined variable '%s'", name->chars);
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        break;
+      }
       case OP_EQUAL: {
-        Value b = pop();
-        Value a = pop();
+        const Value b = pop();
+        const Value a = pop();
         *vm.stack_top++ = BOOL_VAL(values_equal(a, b));
         break;
       }
@@ -168,10 +188,13 @@ static InterpretResult run() {
         }
         negate();
         break;
-      case OP_RETURN: {
-        // Simple instruction for now, which will change later
+      case OP_PRINT: {
         print_value(pop());
-        printf("\n");
+        // printf("\n"); // TODO Maybe delete
+        break;
+      }
+      case OP_RETURN: {
+        // Exit interpreter
         return INTERPRET_OK;
       }
       default:
@@ -181,6 +204,7 @@ static InterpretResult run() {
 
 #undef READ_BYTE
 #undef READ_CONSTANT
+#undef READ_STRING
 #undef BINARY_OP
 }
 
