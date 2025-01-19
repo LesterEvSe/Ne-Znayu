@@ -30,6 +30,9 @@ void write_chunk(Chunk *chunk, const uint8_t byte, const int line) {
 }
 
 int add_constant(Chunk *chunk, const Value value) {
+  const int ind = in_array(&chunk->constants, value);
+  if (ind != -1) return ind;
+
   write_value_array(&chunk->constants, value);
   return chunk->constants.length - 1;
 }

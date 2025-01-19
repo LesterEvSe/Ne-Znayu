@@ -62,7 +62,7 @@ Value pop() {
   return *--vm.stack_top;
 }
 
-static Value peek(int distance) {
+static Value peek(const int distance) {
   return vm.stack_top[-1 - distance];
 }
 
@@ -103,7 +103,7 @@ static InterpretResult run() {
   for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
   printf("          ");
-  for (Value *slot = vm.stack; slot < vm.stack_top; slot++) {
+  for (const Value *slot = vm.stack; slot < vm.stack_top; ++slot) {
     printf("[ ");
     print_value(*slot);
     printf(" ]");
@@ -116,7 +116,7 @@ static InterpretResult run() {
     uint8_t instruction;
     switch (instruction = READ_BYTE()) {
       case OP_CONSTANT: {
-        Value constant = READ_CONSTANT();
+        const Value constant = READ_CONSTANT();
         push(constant);
         break;
       }

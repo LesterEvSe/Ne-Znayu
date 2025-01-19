@@ -16,6 +16,7 @@ typedef struct {
   bool panic_mode; // If we have 1 syntax error, do not issue 13 more error related to this
 } Parser;
 
+// Order is important!
 typedef enum {
   PREC_NONE,
   PREC_ASSIGNMENT,  // =
@@ -119,16 +120,16 @@ static void emit_return() {
   emit_byte(OP_RETURN);
 }
 
-static uint8_t make_constant(Value value) {
-  int constant = add_constant(current_chunk(), value);
+static uint8_t make_constant(const Value value) {
+  const int constant = add_constant(current_chunk(), value);
   if (constant > UINT8_MAX) {
     error("Too many constants in one chunk.");
     return 0;
   }
-  return (uint8_t)constant;
+  return constant;
 }
 
-static void emit_constant(Value value) {
+static void emit_constant(const Value value) {
   emit_bytes(OP_CONSTANT, make_constant(value));
 }
 
@@ -157,7 +158,7 @@ static uint8_t parse_variable(const char *error_message) {
   return identifier_constant(&parser.previous);
 }
 
-static void define_variable(uint8_t global) {
+static void define_variable(const uint8_t global) {
   emit_bytes(OP_DEFINE_GLOBAL, global);
 }
 
@@ -276,15 +277,15 @@ ParseRule rules[] = {
   [TOKEN_SUPER]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_THIS]          = {NULL,     NULL,   PREC_NONE},
   [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
-  [TOKEN_LET]           = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_LET_MUT]       = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_VAL]           = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
   [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
 };
 
 // Starts at the current token and parses any expression at the given precedence level or higher
-static void parse_precedence(Precedence precedence) {
+static void parse_precedence(const Precedence precedence) {
   advance();
   const ParseFn prefix_rule = get_rule(parser.previous.type)->prefix;
   if (prefix_rule == NULL) {
@@ -294,7 +295,7 @@ static void parse_precedence(Precedence precedence) {
 
   // prefix_rule() code is wrong, because of valid a * b = c + d; expression from language
   // So change it with code below
-  bool can_assign = precedence <= PREC_ASSIGNMENT;
+  const bool can_assign = precedence <= PREC_ASSIGNMENT;
   prefix_rule(can_assign);
 
   // Process all operators with precedence higher than current
@@ -317,7 +318,7 @@ static void expression() {
   parse_precedence(PREC_ASSIGNMENT);
 }
 
-// desugars `let a;` into `let a = nil;`
+// desugars `val a;` into `val a = nil;`
 static void var_declaration() {
   const uint8_t global = parse_variable("Expect variable name");
 
@@ -353,8 +354,8 @@ static void synchronize() {
     switch (parser.current.type) {
       case TOKEN_AGENT:
       case TOKEN_FUN:
-      case TOKEN_LET:
-      case TOKEN_LET_MUT:
+      case TOKEN_VAL:
+      case TOKEN_VAR:
       case TOKEN_FOR:
       case TOKEN_IF:
       case TOKEN_WHILE:
@@ -372,7 +373,7 @@ static void synchronize() {
 
 // TODO can change const and non const variable flow
 static void declaration() {
-  if (match(TOKEN_LET) || match(TOKEN_LET_MUT)) {
+  if (match(TOKEN_VAL) || match(TOKEN_VAR)) {
     var_declaration();
   } else {
     statement();
@@ -389,22 +390,18 @@ static void statement() {
   }
 }
 
-
 // Temporary code, work due all other time
 bool compile(const char *source, Chunk *chunk) {
   init_scanner(source);
   compiling_chunk = chunk;
 
   parser.had_error = parser.panic_mode = false;
-
   advance();
 
   while (!match(TOKEN_EOF)) {
     declaration();
   }
 
-  // expression();
-  // consume(TOKEN_EOF, "Expect end of expression.");
   end_compiler();
   return !parser.had_error;
 }

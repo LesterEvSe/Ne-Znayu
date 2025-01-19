@@ -47,3 +47,10 @@ bool values_equal(const Value a, const Value b) {
     default:         return false; // Unreachable
   }
 }
+
+int in_array(const ValueArray *array, const Value value) {
+  for (int i = 0; i < array->length; ++i)
+    if (values_equal(array->values[i], value))
+      return i;
+  return -1;
+}

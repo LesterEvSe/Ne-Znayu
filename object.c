@@ -20,24 +20,6 @@ static Obj *allocate_object(const size_t size, ObjType type) {
   return object;
 }
 
-/* TODO maybe delete later
-static ObjString *allocate_string(char *chars, const int length) {
-  ObjString *string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
-  string->length = length;
-  string->chars = chars;
-  return string;
-}
-*/
-
-/* TODO maybe delete later
-ObjString *take_string(char *chars, const int length) {
-  ObjString *string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
-  string->length = length;
-  string->chars
-  return allocate_string(chars, length);
-}
-*/
-
 // Maybe the shortest hash
 // FNV-1 hash algorithm http://www.isthe.com/chongo/tech/comp/fnv/
 static uint32_t hash_string(const char *key, const int length) {
