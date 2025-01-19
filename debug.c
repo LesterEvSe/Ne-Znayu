@@ -52,10 +52,16 @@ int disassemble_instruction(const Chunk* chunk, const int offset) {
       return constant_instruction("OP_SET_GLOBAL", chunk, offset);
     case OP_EQUAL:
       return simple_instruction("OP_EQUAL", offset);
+    case OP_NOT_EQUAL:
+      return simple_instruction("OP_NOT_EQUAL", offset);
     case OP_GREATER:
       return simple_instruction("OP_GREATER", offset);
+    case OP_GREATER_EQUAL:
+      return simple_instruction("OP_GREATER_EQUAL", offset);
     case OP_LESS:
       return simple_instruction("OP_LESS", offset);
+    case OP_LESS_EQUAL:
+      return simple_instruction("OP_LESS_EQUAL", offset);
     case OP_ADD:
       return simple_instruction("OP_ADD", offset);
     case OP_SUBTRACT:

@@ -55,7 +55,6 @@ static char *read_file(const char *path) {
   }
 
   buffer[bytes_read] = '\0';
-
   fclose(file);
   return buffer;
 }
