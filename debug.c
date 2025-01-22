@@ -24,6 +24,13 @@ static int simple_instruction(const char *name, const int offset) {
   return offset + 1;
 }
 
+static int byte_instruction(const char *name, const Chunk *chunk, const int offset) {
+  const uint8_t slot = chunk->code[offset + 1];
+  printf("%-16s %4d\n", name, slot);
+  return offset + 2;
+}
+
+// Need to output some additional info about name of variables (for better debuger)
 int disassemble_instruction(const Chunk* chunk, const int offset) {
   printf("%04d ", offset);
   if (offset > 0 && chunk->lines[offset] == chunk->lines[offset - 1]) {
@@ -44,6 +51,10 @@ int disassemble_instruction(const Chunk* chunk, const int offset) {
       return simple_instruction("OP_FALSE", offset);
     case OP_POP:
       return simple_instruction("OP_POP", offset);
+    case OP_GET_LOCAL:
+      return byte_instruction("OP_GET_LOCAL", chunk, offset);
+    case OP_SET_LOCAL:
+      return byte_instruction("OP_SET_LOCAL", chunk, offset);
     case OP_GET_GLOBAL:
       return constant_instruction("OP_GET_GLOBAL", chunk, offset);
     case OP_DEFINE_GLOBAL:
