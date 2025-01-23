@@ -23,6 +23,7 @@ static void reset_stack() {
 static void runtime_error(const char *format, ...) {
   va_list args;
   va_start(args, format);
+  vfprintf(stderr, format, args);
   va_end(args);
   fputs("\n", stderr);
 
@@ -208,7 +209,7 @@ static InterpretResult run() {
         break;
       case OP_PRINT: {
         print_value(pop());
-        // printf("\n"); // TODO Maybe delete
+        printf("\n");
         break;
       }
       case OP_RETURN: {

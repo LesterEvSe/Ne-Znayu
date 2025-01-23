@@ -68,7 +68,7 @@ static void error_at(const Token *token, const char *message) {
   // If panic mode set, then ignore other errors related to this
   if (parser.panic_mode) return;
   parser.panic_mode = true;
-  fprintf(stderr, "{line %d} Error", token->line);
+  fprintf(stderr, "[line %d] Error", token->line);
 
   if (token->type == TOKEN_EOF) {
     fprintf(stderr, " at end");
@@ -188,14 +188,14 @@ static uint8_t identifier_constant(const Token *name) {
   return make_constant(OBJ_VAL((Obj*)copy_string(name->start, name->length)));
 }
 
-static bool identifiers_equal(Token *a, Token *b) {
+static bool identifiers_equal(const Token *a, const Token *b) {
   if (a->length != b->length) return false;
   return memcmp(a->start, b->start, a->length) == 0;
 }
 
-static int resolve_local(Compiler *compiler, Token *name) {
+static int resolve_local(const Compiler *compiler, const Token *name) {
   for (int i = compiler->local_count - 1; i >= 0; --i) {
-    Local *local = &compiler->locals[i];
+    const Local *local = &compiler->locals[i];
     if (identifiers_equal(name, &local->name)) {
       if (local->depth == -1) {
         error("Can't read local variable in its own initializer.");
@@ -208,7 +208,7 @@ static int resolve_local(Compiler *compiler, Token *name) {
 }
 
 // 
-static void add_local(Token name) {
+static void add_local(const Token name) {
   if (current->local_count == UINT8_COUNT) {
     error("Too many local variables in function.");
     return;
@@ -224,7 +224,7 @@ static void declare_variable() {
 
   Token *name = &parser.previous;
   for (int i = current->local_count - 1; i >= 0; --i) {
-    Local *local = &current->locals[i];
+    const Local *local = &current->locals[i];
     if (local->depth != -1 && local->depth < current->scope_depth) {
       break;
     }
@@ -310,7 +310,7 @@ static void named_variable(const Token name, const bool can_assign) {
   uint8_t get_op, set_op;
   int arg = resolve_local(current, &name);
   if (arg != -1) {
-    get_op = OP_SET_LOCAL;
+    get_op = OP_GET_LOCAL;
     set_op = OP_SET_LOCAL;
   } else {
     arg = identifier_constant(&name);

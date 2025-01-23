@@ -14,11 +14,9 @@ void *reallocate(void *pointer, size_t old_size, const size_t new_size) {
   return result;
 }
 
-#include <stdio.h>
 static void free_object(Obj *object) {
   switch (object->type) {
     case OBJ_STRING: {
-      //printf("ObjString: %lu, *string = %lu\n", sizeof(ObjString), sizeof(*string));
       ObjString *string = (ObjString*)object;
       reallocate(string, sizeof(ObjString) +  string->length + 1, 0);
       break;
