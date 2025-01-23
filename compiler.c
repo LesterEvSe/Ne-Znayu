@@ -44,6 +44,7 @@ typedef struct {
 typedef struct {
   Token name;
   int depth;
+  bool constant;
 } Local;
 
 // Elements ordered in the array in the order that their declarations appear in the code
@@ -193,22 +194,21 @@ static bool identifiers_equal(const Token *a, const Token *b) {
   return memcmp(a->start, b->start, a->length) == 0;
 }
 
-static int resolve_local(const Compiler *compiler, const Token *name) {
+static int resolve_local(const Compiler *compiler, const Token *name, bool *constant) {
   for (int i = compiler->local_count - 1; i >= 0; --i) {
     const Local *local = &compiler->locals[i];
     if (identifiers_equal(name, &local->name)) {
       if (local->depth == -1) {
         error("Can't read local variable in its own initializer.");
       }
+      *constant = local->constant;
       return i;
     }
   }
-
   return -1;
 }
 
-// 
-static void add_local(const Token name) {
+static void add_local(const Token name, const bool constant) {
   if (current->local_count == UINT8_COUNT) {
     error("Too many local variables in function.");
     return;
@@ -217,9 +217,10 @@ static void add_local(const Token name) {
   Local *local = &current->locals[current->local_count++];
   local->name = name;
   local->depth = -1;
+  local->constant = constant;
 }
 
-static void declare_variable() {
+static void declare_variable(const bool constant) {
   if (current->scope_depth == 0) return;
 
   Token *name = &parser.previous;
@@ -234,14 +235,14 @@ static void declare_variable() {
     }
   }
 
-  // Don't worry about passing the local variable, because of const char * string
-  add_local(*name);
+  // Don't worry about passing the local variable, because it's const char* string
+  add_local(*name, constant);
 }
 
-static uint8_t parse_variable(const char *error_message) {
+static uint8_t parse_variable(const char *error_message, const bool constant) {
   consume(TOKEN_IDENTIFIER, error_message);
 
-  declare_variable();
+  declare_variable(constant);
   if (current->scope_depth > 0) return 0;
 
   return identifier_constant(&parser.previous);
@@ -308,7 +309,9 @@ static void string(const bool can_assign) {
 
 static void named_variable(const Token name, const bool can_assign) {
   uint8_t get_op, set_op;
-  int arg = resolve_local(current, &name);
+  bool constant = false;
+  int arg = resolve_local(current, &name, &constant);
+
   if (arg != -1) {
     get_op = OP_GET_LOCAL;
     set_op = OP_SET_LOCAL;
@@ -320,6 +323,10 @@ static void named_variable(const Token name, const bool can_assign) {
 
   if (can_assign && match(TOKEN_EQUAL)) {
     expression();
+    if (constant) {
+      error_at(&name, "Can't reassign a constant");
+      return;
+    }
     emit_bytes(set_op, (uint8_t)arg);
   } else {
     emit_bytes(get_op, (uint8_t)arg);
@@ -434,18 +441,16 @@ static void block() {
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
 }
 
-// desugars `val a;` into `val a = nil;`
-static void var_declaration() {
-  const uint8_t global = parse_variable("Expect variable name");
+// desugars `var a;` into `var a = nil;`
+static void var_declaration(const bool constant) {
+  const uint8_t global = parse_variable("Expect variable name", constant);
 
   if (match(TOKEN_EQUAL)) {
     expression();
   } else {
     emit_byte(OP_NIL);
   }
-  consume(TOKEN_SEMICOLON,
-          "Expect ';' after variable declaration");
-
+  consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration");
   define_variable(global);
 }
 
@@ -490,9 +495,9 @@ static void synchronize() {
 // TODO can change const and non const variable flow
 static void declaration() {
   if (match(TOKEN_VAL)) {
-    //var_declaration();
+    var_declaration(true);  // constant
   } else if (match(TOKEN_VAR)) {
-    var_declaration();
+    var_declaration(false); // variable
   } else {
     statement();
   }
