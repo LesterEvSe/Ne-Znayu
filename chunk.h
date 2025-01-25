@@ -35,14 +35,14 @@ typedef enum {
 typedef struct {
   int length;
   int capacity;
-  uint8_t *code;
+  uint16_t *code;
   int *lines;  // To track errors
   ValueArray constants;
 } Chunk;
 
 void init_chunk(Chunk *chunk);
 void free_chunk(Chunk *chunk);
-void write_chunk(Chunk *chunk, uint8_t byte, int line);
+void write_chunk(Chunk *chunk, uint16_t byte, int line);
 int add_constant(Chunk *chunk, Value value);
 
 #endif // PL_CHUNK_H

@@ -49,7 +49,7 @@ typedef struct {
 
 // Elements ordered in the array in the order that their declarations appear in the code
 typedef struct {
-  Local locals[UINT8_COUNT];
+  Local locals[UINT16_COUNT];
   int local_count;
   int scope_depth;
 } Compiler;
@@ -122,11 +122,11 @@ static bool match(const TokenType type) {
   return true;
 }
 
-static void emit_byte(const uint8_t byte) {
+static void emit_byte(const uint16_t byte) {
   write_chunk(current_chunk(), byte, parser.previous.line);
 }
 
-static void emit_bytes(const uint8_t byte1, const uint8_t byte2) {
+static void emit_bytes(const uint16_t byte1, const uint16_t byte2) {
   emit_byte(byte1);
   emit_byte(byte2);
 }
@@ -135,9 +135,9 @@ static void emit_return() {
   emit_byte(OP_RETURN);
 }
 
-static uint8_t make_constant(const Value value) {
+static uint16_t make_constant(const Value value) {
   const int constant = add_constant(current_chunk(), value);
-  if (constant > UINT8_MAX) {
+  if (constant > UINT16_MAX) {
     error("Too many constants in one chunk.");
     return 0;
   }
@@ -185,7 +185,7 @@ static void declaration();
 static ParseRule *get_rule(TokenType type);
 static void parse_precedence(Precedence precedence);
 
-static uint8_t identifier_constant(const Token *name) {
+static uint16_t identifier_constant(const Token *name) {
   return make_constant(OBJ_VAL((Obj*)copy_string(name->start, name->length)));
 }
 
@@ -209,7 +209,7 @@ static int resolve_local(const Compiler *compiler, const Token *name, bool *cons
 }
 
 static void add_local(const Token name, const bool constant) {
-  if (current->local_count == UINT8_COUNT) {
+  if (current->local_count == UINT16_COUNT) {
     error("Too many local variables in function.");
     return;
   }
@@ -239,7 +239,7 @@ static void declare_variable(const bool constant) {
   add_local(*name, constant);
 }
 
-static uint8_t parse_variable(const char *error_message, const bool constant) {
+static uint16_t parse_variable(const char *error_message, const bool constant) {
   consume(TOKEN_IDENTIFIER, error_message);
 
   declare_variable(constant);
@@ -253,7 +253,7 @@ static void mark_initialized() {
   current->locals[current->local_count - 1].depth = current->scope_depth;
 }
 
-static void define_variable(const uint8_t global, const bool constant) {
+static void define_variable(const uint16_t global, const bool constant) {
   if (current->scope_depth > 0) {
     mark_initialized();
     return;
@@ -310,7 +310,7 @@ static void string(const bool can_assign) {
 }
 
 static void named_variable(const Token name, const bool can_assign) {
-  uint8_t get_op, set_op;
+  uint16_t get_op, set_op;
   bool constant = false;
   int arg = resolve_local(current, &name, &constant);
 
@@ -329,9 +329,9 @@ static void named_variable(const Token name, const bool can_assign) {
       error_at(&name, "Can't reassign a constant");
       return;
     }
-    emit_bytes(set_op, (uint8_t)arg);
+    emit_bytes(set_op, (uint16_t)arg);
   } else {
-    emit_bytes(get_op, (uint8_t)arg);
+    emit_bytes(get_op, (uint16_t)arg);
   }
 }
 
@@ -445,7 +445,7 @@ static void block() {
 
 // desugars `var a;` into `var a = nil;`
 static void var_declaration(const bool constant) {
-  const uint8_t global = parse_variable("Expect variable name", constant);
+  const uint16_t global = parse_variable("Expect variable name", constant);
 
   if (match(TOKEN_EQUAL)) {
     expression();

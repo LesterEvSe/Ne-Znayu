@@ -11,7 +11,7 @@ typedef struct {
 
   // ptr that pointing into the middle of the bytecode arr
   // This is Instruction Pointer (x86, x64, etc. call it PC - program counter)
-  uint8_t *ip;
+  uint16_t *ip;
 
   int capacity;
   Value *stack;

@@ -70,6 +70,7 @@ static Token error_token(const char *message) {
   return token;
 }
 
+// TODO add multi-line comments
 static void skip_whitespace() {
   for (;;) {
     const char c = peek();

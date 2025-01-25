@@ -12,12 +12,9 @@
 // Can be recoded with pointer variable, which pass from main func
 VM vm;
 
-// TODO delete later
-static void reset_stack() {
-  vm.capacity = GROW_CAPACITY(0);
-  vm.stack_top = vm.stack = GROW_ARRAY(Value, vm.stack, 0, vm.capacity);
-
-  //vm.stack_top = vm.stack;
+static void clear_stack() {
+  vm.stack_top = vm.stack = GROW_ARRAY(Value, vm.stack, vm.capacity, 0);
+  vm.capacity = 0;
 }
 
 static void runtime_error(const char *format, ...) {
@@ -31,22 +28,21 @@ static void runtime_error(const char *format, ...) {
   const size_t instruction = vm.ip - vm.chunk->code - 1;
   const int line = vm.chunk->lines[instruction];
   fprintf(stderr, "[line %d] in script\n", line);
-  reset_stack();
+  clear_stack();
 }
 
 void init_vm() {
-  reset_stack();
+  vm.capacity = GROW_CAPACITY(0);
+  vm.stack_top = vm.stack = GROW_ARRAY(Value, vm.stack, 0, vm.capacity);
+
   vm.objects = NULL;
-  //init_table(&vm.globals);
   init_table(&vm.strings);
 }
 
 void free_vm() {
-  //free_table(&vm.globals);
   free_table(&vm.strings);
   free_objects();
-  FREE_ARRAY(Value, vm.stack, vm.capacity);
-  reset_stack();
+  clear_stack();
 }
 
 void push(const Value value) {
@@ -100,12 +96,6 @@ static InterpretResult run() {
     *vm.stack_top++ = ValueType(a op b); \
   } while (false)
 
-  /* // Endless cycle?
-  for (int i = 0; i < vm.chunk->constants.length; ++i) {
-    printf("%f ", vm.chunk->constants.values[i].as.number);
-  }
-  */
-
   // First instruction is opcode, so we do 'decoding/dispatching' the instruction
   for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
@@ -120,7 +110,7 @@ static InterpretResult run() {
     (int)(vm.ip - vm.chunk->code));
 #endif
 
-    uint8_t instruction;
+    uint16_t instruction;
     switch (instruction = READ_BYTE()) {
       case OP_CONSTANT: {
         const Value constant = READ_CONSTANT();
@@ -132,18 +122,18 @@ static InterpretResult run() {
       case OP_FALSE: push(BOOL_VAL(false)); break;
       case OP_POP:   pop(); break;
       case OP_SET_LOCAL: {
-        const uint8_t slot = READ_BYTE();
+        const uint16_t slot = READ_BYTE();
         vm.stack[slot] = peek(0);
         break;
       }
       case OP_GET_LOCAL: {
-        const uint8_t slot = READ_BYTE();
+        const uint16_t slot = READ_BYTE();
         push(vm.stack[slot]);
         break;
       }
       case OP_GET_GLOBAL: {
         const ObjString *name = READ_STRING();
-        uint8_t ind; // plug
+        uint16_t ind; // plug
         const GlobalVar *var = global_find(&vm.globals, name, &ind);
         if (var == NULL) {
           runtime_error("Undefined variable '%s'", name->chars);
@@ -164,7 +154,7 @@ static InterpretResult run() {
       }
       case OP_SET_GLOBAL: {
         const ObjString *name = READ_STRING();
-        uint8_t ind;
+        uint16_t ind;
         const GlobalVar *var = global_find(&vm.globals, name, &ind);
 
         if (var == NULL) {
