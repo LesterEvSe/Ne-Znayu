@@ -253,11 +253,13 @@ static void mark_initialized() {
   current->locals[current->local_count - 1].depth = current->scope_depth;
 }
 
-static void define_variable(const uint8_t global) {
+static void define_variable(const uint8_t global, const bool constant) {
   if (current->scope_depth > 0) {
     mark_initialized();
     return;
   }
+  
+  emit_constant(BOOL_VAL(constant));
   emit_bytes(OP_DEFINE_GLOBAL, global);
 }
 
@@ -451,7 +453,7 @@ static void var_declaration(const bool constant) {
     emit_byte(OP_NIL);
   }
   consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration");
-  define_variable(global);
+  define_variable(global, constant);
 }
 
 // expression followed by ; (but not print)

@@ -47,11 +47,9 @@ def main():
         print("Build commands failed. Exiting.")
         return
 
-    # Запуск тестів
     test_command = "../build/NeZnayu"
-    results = run_tests(current_dir + "operator", test_command)
+    results = run_tests(current_dir + "assignment", test_command)
 
-    # Виведення результатів
     print("Test results:")
     for file, output in results.items():
         print(f"{file}:\n{output}\n")

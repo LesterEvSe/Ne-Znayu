@@ -13,6 +13,7 @@ set(PROJECT_SOURCES
     scanner.c
     object.c
     table.c
+    global_vars.c
 )
 
 set(PROJECT_HEADERS

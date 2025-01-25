@@ -116,6 +116,7 @@ static TokenType identifier_type() {
           case 'n': return check_keyword(2, 1, "d", TOKEN_AND);
         }
       }
+      break;
     case 'e': return check_keyword(1, 3, "lse", TOKEN_ELSE);
     case 'f':
       if (scanner.current - scanner.start > 1) {
@@ -127,14 +128,6 @@ static TokenType identifier_type() {
       }
       break;
     case 'i': return check_keyword(1, 1, "f", TOKEN_IF);
-    case 'l': {
-      return check_keyword(1, 2, "et", TOKEN_VAL);
-
-      // TODO think about it
-      const uint8_t type = check_keyword(1, 6, "et mut", TOKEN_VAR);
-      if (type != TOKEN_IDENTIFIER) return type;
-      return check_keyword(1, 2, "et", TOKEN_VAL);
-    }
     case 'n': return check_keyword(1, 2, "il", TOKEN_NIL);
     case 'o': return check_keyword(1, 1, "r", TOKEN_OR);
     case 'p': return check_keyword(1, 4, "rint", TOKEN_PRINT);
@@ -147,6 +140,7 @@ static TokenType identifier_type() {
           case 'r': return check_keyword(2, 2, "ue", TOKEN_TRUE);
         }
       }
+      break;
     case 'v':
       if (scanner.current - scanner.start > 2 && scanner.start[1] == 'a') {
         switch (scanner.start[2]) {
@@ -154,6 +148,7 @@ static TokenType identifier_type() {
           case 'r': return TOKEN_VAR;
         }
       }
+      break;
     case 'w': return check_keyword(1, 4, "hile", TOKEN_WHILE);
   }
   return TOKEN_IDENTIFIER;

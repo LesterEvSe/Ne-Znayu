@@ -37,12 +37,12 @@ static void runtime_error(const char *format, ...) {
 void init_vm() {
   reset_stack();
   vm.objects = NULL;
-  init_table(&vm.globals);
+  //init_table(&vm.globals);
   init_table(&vm.strings);
 }
 
 void free_vm() {
-  free_table(&vm.globals);
+  //free_table(&vm.globals);
   free_table(&vm.strings);
   free_objects();
   FREE_ARRAY(Value, vm.stack, vm.capacity);
@@ -100,6 +100,12 @@ static InterpretResult run() {
     *vm.stack_top++ = ValueType(a op b); \
   } while (false)
 
+  /* // Endless cycle?
+  for (int i = 0; i < vm.chunk->constants.length; ++i) {
+    printf("%f ", vm.chunk->constants.values[i].as.number);
+  }
+  */
+
   // First instruction is opcode, so we do 'decoding/dispatching' the instruction
   for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
@@ -136,31 +142,40 @@ static InterpretResult run() {
         break;
       }
       case OP_GET_GLOBAL: {
-        ObjString *name = READ_STRING();
-        Value value;
-        if (!table_get(&vm.globals, name, &value)) {
+        const ObjString *name = READ_STRING();
+        uint8_t ind; // plug
+        const GlobalVar *var = global_find(&vm.globals, name, &ind);
+        if (var == NULL) {
           runtime_error("Undefined variable '%s'", name->chars);
           return INTERPRET_RUNTIME_ERROR;
         }
-        push(value);
+        push(var->value);
         break;
       }
-      case OP_DEFINE_GLOBAL: {
-        ObjString *name = READ_STRING();
+      // Bytecode representation: 5, true, name, where 5 is value, bool is constant or not
+      case OP_DEFINE_GLOBAL: { // 3 bytes opcode: define, string and constant
+        const bool constant = AS_BOOL(pop());
+        const ObjString *name = READ_STRING();
 
         // Warn! Don't pop in set, because of future garbage collector work
-        table_set(&vm.globals, name, peek(0));
+        global_set(&vm.globals, name, peek(0), constant);
         pop();
         break;
       }
       case OP_SET_GLOBAL: {
-        ObjString *name = READ_STRING();
-        // If new key, then variable is not defined, so runtime error
-        if (table_set(&vm.globals, name, peek(0))) {
-          table_delete(&vm.globals, name); // delete to prevent errors in REPL
+        const ObjString *name = READ_STRING();
+        uint8_t ind;
+        const GlobalVar *var = global_find(&vm.globals, name, &ind);
+
+        if (var == NULL) {
           runtime_error("Undefined variable '%s'", name->chars);
           return INTERPRET_RUNTIME_ERROR;
         }
+        if (var->constant) {
+          runtime_error("Can't reassign a constant '%s'", name->chars);
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        global_set_at(&vm.globals, peek(0), ind);
         break;
       }
       case OP_EQUAL: {
@@ -218,6 +233,8 @@ static InterpretResult run() {
       }
       default:
         printf("Command '%d' doesn't exist", instruction);
+        runtime_error("Programming language problem.");
+        return INTERPRET_RUNTIME_ERROR;
     }
   }
 

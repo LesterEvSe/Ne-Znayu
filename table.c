@@ -25,13 +25,10 @@ static Entry *find_entry(Entry *entries, const int capacity, const ObjString *ke
   for (;;) {
     Entry *entry = &entries[index];
     if (entry->key == NULL) {
-      if (IS_NIL(entry->value)) {
-        // Empty entry
-        return tombstone != NULL ? tombstone : entry;
-      } else if (tombstone == NULL) { // TODO Maybe can optimize?
-        tombstone = entry;
-      }
-    } else if (entry->key == key) {
+      // Empty entry
+      if (IS_NIL(entry->value)) return tombstone != NULL ? tombstone : entry;
+      if (tombstone == NULL) tombstone = entry;
+    } else if (entry->key == key) { // Can compare two objects, due to string interning
       return entry;
     }
     index = (index + 1) % capacity;
@@ -99,7 +96,7 @@ bool table_delete(const Table *table, const ObjString *key) {
   return true;
 }
 
-// Need for methods inheritance
+// Required for inheriting methods
 void table_add_all(const Table *from, Table *to) {
   for (int i = 0; i < from->capacity; ++i) {
     const Entry *entry = &from->entries[i];

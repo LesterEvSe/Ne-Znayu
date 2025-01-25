@@ -4,9 +4,7 @@
 #include "chunk.h"
 #include "table.h"
 #include "value.h"
-
-// Can dynamically grow stack, but keep it simple for now
-//#define STACK_MAX 256
+#include "global_vars.h"
 
 typedef struct {
   Chunk *chunk;
@@ -16,10 +14,10 @@ typedef struct {
   uint8_t *ip;
 
   int capacity;
-  Value *stack; // Value stack[STACK_MAX];
+  Value *stack;
 
   Value *stack_top;
-  Table globals;
+  GlobalVarArray globals;
 
   // For String Interning
   // Make sure that strings with the same chars have the same memory
