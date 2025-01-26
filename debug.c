@@ -30,7 +30,15 @@ static int byte_instruction(const char *name, const Chunk *chunk, const int offs
   return offset + 2;
 }
 
-// Need to output some additional info about name of variables (for better debuger)
+static int jump_instruction(const char *name, const int sign,
+                            const Chunk *chunk, const int offset) {
+  uint32_t jump = (chunk->code[offset + 1] << 16);
+  jump |= chunk->code[offset + 2];
+  printf("%-16s %4d -> %d\n", name, offset, offset + 3 + sign * jump);
+  return offset + 3;
+}
+
+// Need to output some additional info about name of variables (for better debugger)
 int disassemble_instruction(const Chunk* chunk, const int offset) {
   printf("%04d ", offset);
   if (offset > 0 && chunk->lines[offset] == chunk->lines[offset - 1]) {
@@ -87,6 +95,12 @@ int disassemble_instruction(const Chunk* chunk, const int offset) {
       return simple_instruction("OP_NEGATE", offset);
     case OP_PRINT:
       return simple_instruction("OP_PRINT", offset);
+    case OP_JUMP:
+      return jump_instruction("OP_JUMP", 1, chunk, offset);
+    case OP_JUMP_IF_FALSE:
+      return jump_instruction("OP_JUMP_IF_FALSE", 1, chunk, offset);
+    case OP_LOOP:
+      return jump_instruction("OP_LOOP", -1, chunk, offset);
     case OP_RETURN:
       return simple_instruction("OP_RETURN", offset);
     default:

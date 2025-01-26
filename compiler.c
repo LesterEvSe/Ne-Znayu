@@ -131,6 +131,25 @@ static void emit_bytes(const uint16_t byte1, const uint16_t byte2) {
   emit_byte(byte2);
 }
 
+static void emit_loop(const int loop_start) {
+  emit_byte(OP_LOOP);
+
+  const int offset = current_chunk()->length - loop_start + 2;
+  if (offset > UINT32_MAX/3) error("Loop body too large.");
+
+  emit_byte((offset >> 16) & 0xffff);
+  emit_byte(offset & 0xffff);
+}
+
+// TODO Maybe rework with "long jump" instruction
+static int emit_jump(const uint16_t instruction) {
+  emit_byte(instruction);
+  // 0xffffffff - 32 bytes
+  emit_byte(0xffff);
+  emit_byte(0xffff);
+  return current_chunk()->length - 2;
+}
+
 static void emit_return() {
   emit_byte(OP_RETURN);
 }
@@ -146,6 +165,18 @@ static uint16_t make_constant(const Value value) {
 
 static void emit_constant(const Value value) {
   emit_bytes(OP_CONSTANT, make_constant(value));
+}
+
+static void patch_jump(const int offset) {
+  // -2 to adjust for the bytecode for the jump offset itself
+  const int jump = current_chunk()->length - offset - 2;
+
+  if (jump > UINT32_MAX/3) {
+    error("Too much code to jump over.");
+  }
+
+  current_chunk()->code[offset] = (jump >> 16) & 0xffff;
+  current_chunk()->code[offset + 1] = jump & 0xffff;
 }
 
 static void init_compiler(Compiler *compiler) {
@@ -258,9 +289,18 @@ static void define_variable(const uint16_t global, const bool constant) {
     mark_initialized();
     return;
   }
-  
+
   emit_constant(BOOL_VAL(constant));
   emit_bytes(OP_DEFINE_GLOBAL, global);
+}
+
+static void and_(const bool can_assign) {
+  const int end_jump = emit_jump(OP_JUMP_IF_FALSE);
+
+  emit_byte(OP_POP);
+  parse_precedence(PREC_AND);
+
+  patch_jump(end_jump);
 }
 
 static void binary(const bool can_assign) {
@@ -301,6 +341,18 @@ static void number(const bool can_assign) {
   // str to double
   const double value = strtod(parser.previous.start, NULL);
   emit_constant(NUMBER_VAL(value));
+}
+
+// TODO can add OP_JUMP_IF_TRUE instruction
+static void or_(const bool can_assign) {
+  const int else_jump = emit_jump(OP_JUMP_IF_FALSE);
+  const int end_jump = emit_jump(OP_JUMP);
+
+  patch_jump(else_jump);
+  emit_byte(OP_POP);
+
+  parse_precedence(PREC_OR);
+  patch_jump(end_jump);
 }
 
 // If language supported characters like \n or another, then we'd translate those here
@@ -379,7 +431,7 @@ ParseRule rules[] = {
   [TOKEN_IDENTIFIER]    = {variable, NULL,   PREC_NONE},
   [TOKEN_STRING]        = {string,   NULL,   PREC_NONE},
   [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
-  [TOKEN_AND]           = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_AND]           = {NULL,     and_,   PREC_AND},
   [TOKEN_AGENT]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_ELSE]          = {NULL,     NULL,   PREC_NONE},
   [TOKEN_FALSE]         = {literal,  NULL,   PREC_NONE},
@@ -387,7 +439,7 @@ ParseRule rules[] = {
   [TOKEN_FUN]           = {NULL,     NULL,   PREC_NONE},
   [TOKEN_IF]            = {NULL,     NULL,   PREC_NONE},
   [TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
-  [TOKEN_OR]            = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_OR]            = {NULL,     or_,    PREC_OR},
   [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
   [TOKEN_SUPER]         = {NULL,     NULL,   PREC_NONE},
@@ -463,10 +515,91 @@ static void expression_statement() {
   emit_byte(OP_POP);
 }
 
+static void for_statement() {
+  begin_scope();
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
+  if (match(TOKEN_SEMICOLON)) {
+    // No initializer
+  } else if (match(TOKEN_VAR)) {
+    var_declaration(false);
+  } else {
+    expression_statement();
+  }
+
+  int loop_start = current_chunk()->length;
+  int exit_jump = -1;
+  if (!match(TOKEN_SEMICOLON)) {
+    expression();
+    consume(TOKEN_SEMICOLON, "Expect ';' after loop condition.");
+
+    // Jump out of the loop if the condition is false
+    exit_jump = emit_jump(OP_JUMP_IF_FALSE);
+    emit_byte(OP_POP); // Condition
+  }
+
+  // After iteration jump to ++ instruction, then jump back, only after that new iter
+  // Uhh...? Maybe can find better approach
+  if (!match(TOKEN_RIGHT_PAREN)) {
+    const int body_jump = emit_jump(OP_JUMP);
+    const int increment_start = current_chunk()->length;
+    expression();
+    emit_byte(OP_POP);
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
+
+    emit_loop(loop_start);
+    loop_start = increment_start;
+    patch_jump(body_jump);
+  }
+
+  statement();
+  emit_loop(loop_start);
+
+  if (exit_jump != -1) {
+    patch_jump(exit_jump);
+    emit_byte(OP_POP); // Condition
+  }
+
+  end_scope();
+}
+
+// Language can be without left brace, but it's look bad to us humans)
+static void if_statement() {
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+  const int then_jump = emit_jump(OP_JUMP_IF_FALSE);
+  emit_byte(OP_POP);
+  statement();
+
+  const int else_jump = emit_jump(OP_JUMP);
+
+  patch_jump(then_jump);
+  emit_byte(OP_POP);
+
+  if (match(TOKEN_ELSE)) statement();
+  patch_jump(else_jump);
+}
+
 static void print_statement() {
   expression();
-  consume(TOKEN_SEMICOLON, "Expect ';' after value");
+  consume(TOKEN_SEMICOLON, "Expect ';' after value.");
   emit_byte(OP_PRINT);
+}
+
+static void while_statement() {
+  const int loop_start = current_chunk()->length;
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+  const int exit_jump = emit_jump(OP_JUMP_IF_FALSE);
+  emit_byte(OP_POP);
+  statement();
+  emit_loop(loop_start);
+
+  patch_jump(exit_jump);
+  emit_byte(OP_POP);
 }
 
 static void synchronize() {
@@ -510,6 +643,12 @@ static void declaration() {
 static void statement() {
   if (match(TOKEN_PRINT)) {
     print_statement();
+  } else if (match(TOKEN_FOR)) {
+    for_statement();
+  } else if (match(TOKEN_IF)) {
+    if_statement();
+  } else if (match(TOKEN_WHILE)) {
+    while_statement();
   } else if (match(TOKEN_LEFT_BRACE)) {
     begin_scope();
     block();

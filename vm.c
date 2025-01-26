@@ -84,6 +84,7 @@ void negate() {
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip++)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
+#define READ_INT() (vm.ip += 2, (uint32_t)((vm.ip[-2] << 16) | vm.ip[-1]))
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(ValueType, op) \
   do { \
@@ -217,6 +218,21 @@ static InterpretResult run() {
         printf("\n");
         break;
       }
+      case OP_JUMP: {
+        const uint32_t offset = READ_INT();
+        vm.ip += offset;
+        break;
+      }
+      case OP_JUMP_IF_FALSE: {
+        const uint32_t offset = READ_INT();
+        if (is_falsey(peek(0))) vm.ip += offset;
+        break;
+      }
+      case OP_LOOP: {
+        const uint32_t offset = READ_INT();
+        vm.ip -= offset;
+        break;
+      }
       case OP_RETURN: {
         // Exit interpreter
         return INTERPRET_OK;
@@ -229,6 +245,7 @@ static InterpretResult run() {
   }
 
 #undef READ_BYTE
+#undef READ_INT
 #undef READ_CONSTANT
 #undef READ_STRING
 #undef BINARY_OP
