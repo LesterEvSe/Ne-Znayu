@@ -68,6 +68,8 @@ static void run_file(const char *path) {
   if (result == INTERPRET_RUNTIME_ERROR) exit(70);
 }
 
+#include <time.h>
+
 int main(const int argc, char *argv[]) {
   init_vm();
 

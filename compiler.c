@@ -47,8 +47,17 @@ typedef struct {
   bool constant;
 } Local;
 
+typedef enum {
+  TYPE_FUNCTION,
+  TYPE_SCRIPT
+} FunctionType;
+
 // Elements ordered in the array in the order that their declarations appear in the code
-typedef struct {
+typedef struct Compiler {
+  struct Compiler *enclosing;
+  ObjFunction *function;
+  FunctionType type;
+
   Local locals[UINT16_COUNT];
   int local_count;
   int scope_depth;
@@ -56,12 +65,10 @@ typedef struct {
 
 Parser parser;
 Compiler *current = NULL;
-Chunk *compiling_chunk;
 
-
-// Later, logic will be more complicated, so encapsulate this in func
+// Current chunk is always the chunk owned by the function we inside compiling
 static Chunk *current_chunk() {
-  return compiling_chunk;
+  return &current->function->chunk;
 }
 
 static void error_at(const Token *token, const char *message) {
@@ -151,6 +158,7 @@ static int emit_jump(const uint16_t instruction) {
 }
 
 static void emit_return() {
+  emit_byte(OP_NIL);
   emit_byte(OP_RETURN);
 }
 
@@ -179,18 +187,36 @@ static void patch_jump(const int offset) {
   current_chunk()->code[offset + 1] = jump & 0xffff;
 }
 
-static void init_compiler(Compiler *compiler) {
+static void init_compiler(Compiler *compiler, const FunctionType type) {
+  compiler->enclosing = current;
+  compiler->function = NULL;
+  compiler->type = type;
   compiler->local_count = compiler->scope_depth = 0;
+  compiler->function = new_function();
   current = compiler;
+
+  // Function live like global vars, so need own copy
+  if (type != TYPE_SCRIPT) {
+    current->function->name = copy_string(parser.previous.start, parser.previous.length);
+  }
+
+  Local *local = &current->locals[current->local_count++];
+  local->depth = local->name.length = 0;
+  local->name.start = "";
 }
 
-static void end_compiler() {
+static ObjFunction *end_compiler() {
   emit_return();
+  ObjFunction *function = current->function;
 #ifdef DEBUG_PRINT_CODE
   if (!parser.had_error) {
-    disassemble_chunk(current_chunk(), "code");
+    disassemble_chunk(current_chunk(), function->name != NULL
+      ? function->name->chars : "<script>");
   }
 #endif
+
+  current = current->enclosing;
+  return function;
 }
 
 static void begin_scope() {
@@ -281,6 +307,7 @@ static uint16_t parse_variable(const char *error_message, const bool constant) {
 
 // So `val a = a` is error in any case
 static void mark_initialized() {
+  if (current->scope_depth == 0) return;
   current->locals[current->local_count - 1].depth = current->scope_depth;
 }
 
@@ -292,6 +319,21 @@ static void define_variable(const uint16_t global, const bool constant) {
 
   emit_constant(BOOL_VAL(constant));
   emit_bytes(OP_DEFINE_GLOBAL, global);
+}
+
+static uint16_t argument_list() {
+  uint16_t arg_count = 0;
+  if (!check(TOKEN_RIGHT_PAREN)) {
+    do {
+      expression();
+      if (arg_count == 65535) {
+        error("Can't have more than 65'535 arguments.");
+      }
+      ++arg_count;
+    } while (match(TOKEN_COMMA));
+  }
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+  return arg_count;
 }
 
 static void and_(const bool can_assign) {
@@ -321,6 +363,11 @@ static void binary(const bool can_assign) {
     case TOKEN_SLASH:         emit_byte(OP_DIVIDE);   break;
     default:                  return; // Unreachable;
   }
+}
+
+static void call(const bool can_assign) {
+  const uint16_t arg_count = argument_list();
+  emit_bytes(OP_CALL, arg_count);
 }
 
 static void literal(const bool can_assign) {
@@ -409,7 +456,7 @@ static void unary(const bool can_assign) {
 // Maybe add ?: mixfix operator.
 // Explanation: https://journal.stuffwithstuff.com/2011/03/19/pratt-parsers-expression-parsing-made-easy/
 ParseRule rules[] = {
-  [TOKEN_LEFT_PAREN]    = {grouping, NULL,   PREC_NONE},
+  [TOKEN_LEFT_PAREN]    = {grouping, call,   PREC_CALL},
   [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,   PREC_NONE},
   [TOKEN_LEFT_BRACE]    = {NULL,     NULL,   PREC_NONE},
   [TOKEN_RIGHT_BRACE]   = {NULL,     NULL,   PREC_NONE},
@@ -493,6 +540,41 @@ static void block() {
   }
 
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
+}
+
+static void function(const FunctionType type) {
+  Compiler compiler;
+  init_compiler(&compiler, type);
+  begin_scope();
+
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after function name.");
+  // Pass params here
+  if (!check(TOKEN_RIGHT_PAREN)) {
+    do {
+      ++current->function->arity;
+      if (current->function->arity > 255) {
+        error_at_current("Can't have more than 255 parameters.");
+      }
+
+      // TODO pass the constants?? Fix the bug, if exist. Hmm... Maybe pass with val/var keyword
+      const uint16_t constant = parse_variable("Expect parameter name.", true);
+      define_variable(constant, true);
+    } while (match(TOKEN_COMMA));
+  }
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
+  consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
+  block();
+
+  ObjFunction *function = end_compiler();
+  emit_bytes(OP_CONSTANT, make_constant(OBJ_VAL((Obj*)function)));
+}
+
+static void fun_declaration() {
+  const bool constant = true; // plug
+  const uint16_t global = parse_variable("Expect function name.", constant);
+  mark_initialized();
+  function(TYPE_FUNCTION);
+  define_variable(global, constant);
 }
 
 // desugars `var a;` into `var a = nil;`
@@ -587,6 +669,20 @@ static void print_statement() {
   emit_byte(OP_PRINT);
 }
 
+static void return_statement() {
+  if (current->type == TYPE_SCRIPT) {
+    error("Can't return from top-level code.");
+  }
+
+  if (match(TOKEN_SEMICOLON)) {
+    emit_return();
+  } else {
+    expression();
+    consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
+    emit_byte(OP_RETURN);
+  }
+}
+
 static void while_statement() {
   const int loop_start = current_chunk()->length;
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
@@ -627,9 +723,10 @@ static void synchronize() {
   }
 }
 
-// TODO can change const and non const variable flow
 static void declaration() {
-  if (match(TOKEN_VAL)) {
+  if (match(TOKEN_FUN)) {
+    fun_declaration();
+  } else if (match(TOKEN_VAL)) {
     var_declaration(true);  // constant
   } else if (match(TOKEN_VAR)) {
     var_declaration(false); // variable
@@ -647,6 +744,8 @@ static void statement() {
     for_statement();
   } else if (match(TOKEN_IF)) {
     if_statement();
+  } else if (match(TOKEN_RETURN)) {
+    return_statement();
   } else if (match(TOKEN_WHILE)) {
     while_statement();
   } else if (match(TOKEN_LEFT_BRACE)) {
@@ -659,11 +758,10 @@ static void statement() {
 }
 
 // Temporary code, work due all other time
-bool compile(const char *source, Chunk *chunk) {
+ObjFunction *compile(const char *source) {
   init_scanner(source);
   Compiler compiler;
-  init_compiler(&compiler);
-  compiling_chunk = chunk;
+  init_compiler(&compiler, TYPE_SCRIPT);
 
   parser.had_error = parser.panic_mode = false;
   advance();
@@ -672,6 +770,6 @@ bool compile(const char *source, Chunk *chunk) {
     declaration();
   }
 
-  end_compiler();
-  return !parser.had_error;
+  ObjFunction *function = end_compiler();
+  return parser.had_error ? NULL : function;
 }

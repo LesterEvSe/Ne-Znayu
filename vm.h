@@ -1,17 +1,27 @@
 #ifndef PL_VM_H
 #define PL_VM_H
 
-#include "chunk.h"
+#include "object.h"
 #include "table.h"
 #include "value.h"
 #include "global_vars.h"
 
+#define FRAMES_MAX 256 // 64
+
 typedef struct {
-  Chunk *chunk;
+  ObjFunction *function;
+  uint16_t *ip;
+  Value *slots;
+} CallFrame;
+
+typedef struct {
+  CallFrame frames[FRAMES_MAX];
+  int frame_count;
+  //Chunk *chunk;
 
   // ptr that pointing into the middle of the bytecode arr
   // This is Instruction Pointer (x86, x64, etc. call it PC - program counter)
-  uint16_t *ip;
+  //uint16_t *ip;
 
   int capacity;
   Value *stack;
