@@ -66,8 +66,7 @@ void init_vm() {
   vm.objects = NULL;
   init_table(&vm.strings);
 
-  // TODO uncomment later
-  //define_native("clock", clock_native);
+  define_native("clock", clock_native);
 }
 
 void free_vm() {
@@ -80,8 +79,14 @@ void push(const Value value) {
   if (vm.stack_top == vm.stack + vm.capacity) {
     const int old_capacity = vm.capacity;
     vm.capacity = GROW_CAPACITY(old_capacity);
+    const Value *stack = vm.stack;
     vm.stack = GROW_ARRAY(Value, vm.stack, old_capacity, vm.capacity);
     vm.stack_top = vm.stack + old_capacity;
+
+    // 3 days of debug...
+    for (int i = vm.frame_count - 1; i >= 0; --i) {
+      vm.frames[i].slots = vm.stack + (vm.frames[i].slots - stack);
+    }
   }
   *vm.stack_top++ = value;
 }
@@ -158,9 +163,9 @@ void negate() {
 // Because it's heart of the VM
 static InterpretResult run() {
   CallFrame *frame = &vm.frames[vm.frame_count - 1];
-#define READ_BYTE() (*frame->ip++)
+#define READ_WORD() (*frame->ip++)
 #define READ_INT() (frame->ip += 2, (uint32_t)((frame->ip[-2] << 16) | frame->ip[-1]))
-#define READ_CONSTANT() (frame->function->chunk.constants.values[READ_BYTE()])
+#define READ_CONSTANT() (frame->function->chunk.constants.values[READ_WORD()])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(ValueType, op) \
   do { \
@@ -188,7 +193,7 @@ static InterpretResult run() {
 #endif
 
     uint16_t instruction;
-    switch (instruction = READ_BYTE()) {
+    switch (instruction = READ_WORD()) {
       case OP_CONSTANT: {
         const Value constant = READ_CONSTANT();
         push(constant);
@@ -199,12 +204,12 @@ static InterpretResult run() {
       case OP_FALSE: push(BOOL_VAL(false)); break;
       case OP_POP:   pop(); break;
       case OP_SET_LOCAL: {
-        const uint16_t slot = READ_BYTE();
+        const uint16_t slot = READ_WORD();
         frame->slots[slot] = peek(0);
         break;
       }
       case OP_GET_LOCAL: {
-        const uint16_t slot = READ_BYTE();
+        const uint16_t slot = READ_WORD();
         push(frame->slots[slot]);
         break;
       }
@@ -310,7 +315,7 @@ static InterpretResult run() {
         break;
       }
       case OP_CALL: {
-        const int arg_count = READ_BYTE();
+        const int arg_count = READ_WORD();
         if (!call_value(peek(arg_count), arg_count)) {
           return INTERPRET_RUNTIME_ERROR;
         }
@@ -336,7 +341,7 @@ static InterpretResult run() {
     }
   }
 
-#undef READ_BYTE
+#undef READ_WORD
 #undef READ_INT
 #undef READ_CONSTANT
 #undef READ_STRING
