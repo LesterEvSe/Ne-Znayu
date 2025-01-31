@@ -280,7 +280,7 @@ static void add_local(const Token name, const bool constant) {
 static void declare_variable(const bool constant) {
   if (current->scope_depth == 0) return;
 
-  Token *name = &parser.previous;
+  const Token *name = &parser.previous;
   for (int i = current->local_count - 1; i >= 0; --i) {
     const Local *local = &current->locals[i];
     if (local->depth != -1 && local->depth < current->scope_depth) {
@@ -551,9 +551,9 @@ static void function(const FunctionType type) {
   // Pass params here
   if (!check(TOKEN_RIGHT_PAREN)) {
     do {
-      ++current->function->arity;
-      if (current->function->arity > 255) {
-        error_at_current("Can't have more than 255 parameters.");
+      current->function->arity++;
+      if (current->function->arity > 65535) {
+        error_at_current("Can't have more than 65535 parameters.");
       }
 
       // TODO pass the constants?? Fix the bug, if exist. Hmm... Maybe pass with val/var keyword

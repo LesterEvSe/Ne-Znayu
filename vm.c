@@ -110,6 +110,8 @@ static bool call(ObjFunction *function, const int arg_count) {
   CallFrame *frame = &vm.frames[vm.frame_count++];
   frame->function = function;
   frame->ip = function->chunk.code;
+
+  // Maybe bug here, when we expand memory, then we drop vm.stack_top and here we have invalid...
   frame->slots = vm.stack_top - arg_count - 1;
   return true;
 }
@@ -343,7 +345,7 @@ static InterpretResult run() {
 
 InterpretResult interpret(const char *source) {
   ObjFunction *function = compile(source);
-  if (function == NULL) return INTERPRET_RUNTIME_ERROR;
+  if (function == NULL) return INTERPRET_COMPILE_ERROR;
 
   push(OBJ_VAL((Obj*)function));
   call(function, 0);
