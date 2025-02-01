@@ -10,6 +10,9 @@
 
 typedef struct {
   ObjFunction *function;
+
+  // ptr that pointing into the middle of the bytecode arr
+  // This is Instruction Pointer (x86, x64, etc. call it PC - program counter)
   uint16_t *ip;
   Value *slots;
 } CallFrame;
@@ -17,11 +20,6 @@ typedef struct {
 typedef struct {
   CallFrame frames[FRAMES_MAX];
   int frame_count;
-  //Chunk *chunk;
-
-  // ptr that pointing into the middle of the bytecode arr
-  // This is Instruction Pointer (x86, x64, etc. call it PC - program counter)
-  //uint16_t *ip;
 
   int capacity;
   Value *stack;

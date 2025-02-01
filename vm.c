@@ -1,22 +1,66 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+
+// For native func
 #include <time.h>
+#include <math.h>
 
 #include "common.h"
 #include "compiler.h"
-#include "debug.h"
 #include "object.h"
 #include "memory.h"
 #include "vm.h"
 
+#ifdef DEBUG_TRACE_EXECUTION
+#include "debug.h"
+#endif
+
 // Can be recoded with pointer variable, which pass from main func
 VM vm;
 
-// Here is only one native function :D (for now I think...)
-static Value clock_native(const int arg_count, Value *args) {
-  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+static void runtime_error(const char *format, ...);
+
+// Native functions
+// TODO
+// 1. Move to separate file
+// 2. Add input stream with (scanf for example)
+// 3. Add input/output streams (with files)
+static Value *clock_native(const int arg_count, Value *args) {
+  if (arg_count != 0) {
+    runtime_error("Expect 0 arguments in clock function but got %d.", arg_count);
+    return NULL;
+  }
+
+  Value *res = NULL;
+  res = (Value*)reallocate(res, 0, sizeof(Value));
+  *res = NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+  return res;
 }
+
+static Value *sqrt_native(const int arg_count, Value *args) {
+  if (arg_count != 1) {
+    runtime_error("Expect 1 argument in sqrt function but got %d.", arg_count);
+    return NULL;
+  }
+
+  // TODO check with agents or funcs
+  if (args[0].type == VAL_OBJ) {
+    runtime_error("First argument is not a number.");
+    return NULL;
+  }
+
+  Value *res = NULL;
+  res = (Value*)reallocate(res, 0, sizeof(Value));
+
+  if (args[0].type == VAL_BOOL) {
+    *res = NUMBER_VAL(sqrt(AS_BOOL(args[0])));
+  } else { // Nil or number
+    *res = NUMBER_VAL(sqrt(AS_NUMBER(args[0])));
+  }
+  return res;
+}
+
 
 static void clear_stack() {
   vm.stack_top = vm.stack = GROW_ARRAY(Value, vm.stack, vm.capacity, 0);
@@ -67,6 +111,7 @@ void init_vm() {
   init_table(&vm.strings);
 
   define_native("clock", clock_native);
+  define_native("sqrt", sqrt_native);
 }
 
 void free_vm() {
@@ -128,9 +173,12 @@ static bool call_value(const Value callee, const int arg_count) {
         return call(AS_FUNCTION(callee), arg_count);
       case OBJ_NATIVE: {
         const NativeFn native = AS_NATIVE(callee);
-        const Value result = native(arg_count, vm.stack_top - arg_count);
+        Value *result = native(arg_count, vm.stack_top - arg_count);
+        if (result == NULL) return false;
+
         vm.stack_top -= arg_count + 1;
-        push(result);
+        push(*result);
+        reallocate(result, sizeof(Value), 0);
         return true;
       }
       default:
