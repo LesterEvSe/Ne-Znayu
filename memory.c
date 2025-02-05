@@ -16,6 +16,13 @@ void *reallocate(void *pointer, size_t old_size, const size_t new_size) {
 
 static void free_object(Obj *object) {
   switch (object->type) {
+    case OBJ_CLOSURE: {
+      const ObjClosure *closure = (ObjClosure*)object;
+      // TODO need to uncomment, but there is a bug...
+      FREE_ARRAY(ObjUpvalue*, closure->upvalues, closure->upvalue_count);
+      FREE(ObjClosure, object);
+      break;
+    }
     case OBJ_FUNCTION: {
       ObjFunction *function = (ObjFunction*)object;
       free_chunk(&function->chunk);
@@ -30,6 +37,9 @@ static void free_object(Obj *object) {
       reallocate(string, sizeof(ObjString) +  string->length + 1, 0);
       break;
     }
+    case OBJ_UPVALUE:
+      FREE(ObjUpvalue, object);
+      break;
   }
 }
 

@@ -63,8 +63,9 @@ static Value *sqrt_native(const int arg_count, Value *args) {
 
 
 static void clear_stack() {
-  vm.stack_top = vm.stack = GROW_ARRAY(Value, vm.stack, vm.capacity, 0);
+  vm.stack_top = vm.stack = FREE_ARRAY(Value, vm.stack, vm.capacity); // GROW_ARRAY(Value, vm.stack, vm.capacity, 0);
   vm.capacity = vm.frame_count = 0;
+  vm.open_upvalues = NULL;
 }
 
 static void runtime_error(const char *format, ...) {
@@ -78,7 +79,7 @@ static void runtime_error(const char *format, ...) {
   // Opposite to python style, first of all exact place of error, then stack trace
   for (int i = vm.frame_count - 1; i >= 0; --i) {
     const CallFrame *frame = &vm.frames[i];
-    const ObjFunction *function = frame->function;
+    const ObjFunction *function = frame->closure->function;
     const size_t instruction = frame->ip - function->chunk.code - 1;
 
     fprintf(stderr, "[line %d] in ", function->chunk.lines[instruction]);
@@ -108,6 +109,7 @@ void init_vm() {
   vm.stack_top = vm.stack = GROW_ARRAY(Value, vm.stack, 0, vm.capacity);
 
   vm.objects = NULL;
+  vm.open_upvalues = NULL;
   init_table(&vm.strings);
 
   define_native("clock", clock_native);
@@ -145,10 +147,10 @@ static Value peek(const int distance) {
 }
 
 // TODO delete later, because we have dynamically typed language
-static bool call(ObjFunction *function, const int arg_count) {
-  if (arg_count != function->arity) {
+static bool call(ObjClosure *closure, const int arg_count) {
+  if (arg_count != closure->function->arity) {
     runtime_error("Expect %d arguments but got %d.",
-      function->arity, arg_count);
+      closure->function->arity, arg_count);
     return false;
   }
 
@@ -158,8 +160,8 @@ static bool call(ObjFunction *function, const int arg_count) {
   }
 
   CallFrame *frame = &vm.frames[vm.frame_count++];
-  frame->function = function;
-  frame->ip = function->chunk.code;
+  frame->closure = closure;
+  frame->ip = closure->function->chunk.code;
 
   // Maybe bug here, when we expand memory, then we drop vm.stack_top and here we have invalid...
   frame->slots = vm.stack_top - arg_count - 1;
@@ -169,8 +171,11 @@ static bool call(ObjFunction *function, const int arg_count) {
 static bool call_value(const Value callee, const int arg_count) {
   if (IS_OBJ(callee)) {
     switch (OBJ_TYPE(callee)) {
-      case OBJ_FUNCTION:
-        return call(AS_FUNCTION(callee), arg_count);
+      // Haven't this line anymore, because all functions inside closures
+      // case OBJ_FUNCTION:
+      //  return call(AS_FUNCTION(callee), arg_count);
+      case OBJ_CLOSURE:
+        return call(AS_CLOSURE(callee), arg_count);
       case OBJ_NATIVE: {
         const NativeFn native = AS_NATIVE(callee);
         Value *result = native(arg_count, vm.stack_top - arg_count);
@@ -189,6 +194,41 @@ static bool call_value(const Value callee, const int arg_count) {
   // TODO maybe change 'agents' word
   runtime_error("Can only call functions and agents.");
   return false;
+}
+
+// TODO can be recoded to more elegant way with pointers
+static ObjUpvalue *capture_upvalue(Value *local) {
+  ObjUpvalue *prev_upvalue = NULL;
+  ObjUpvalue *upvalue = vm.open_upvalues;
+  while (upvalue != NULL && upvalue->location > local) {
+    prev_upvalue = upvalue;
+    upvalue = upvalue->next;
+  }
+
+  if (upvalue != NULL && upvalue->location == local) {
+    return upvalue;
+  }
+
+  ObjUpvalue *created_upvalue = new_upvalue(local);
+  created_upvalue->next = upvalue;
+
+  if (prev_upvalue == NULL) {
+    vm.open_upvalues = created_upvalue;
+  } else {
+    prev_upvalue->next = created_upvalue;
+  }
+
+  return created_upvalue;
+}
+
+static void close_upvalues(const Value *last) {
+  while (vm.open_upvalues != NULL &&
+         vm.open_upvalues->location >= last) {
+    ObjUpvalue *upvalue = vm.open_upvalues;
+    upvalue->closed = *upvalue->location;
+    upvalue->location = &upvalue->closed;
+    vm.open_upvalues = upvalue->next;
+  }
 }
 
 static bool is_falsey(const Value value) {
@@ -213,7 +253,7 @@ static InterpretResult run() {
   CallFrame *frame = &vm.frames[vm.frame_count - 1];
 #define READ_WORD() (*frame->ip++)
 #define READ_INT() (frame->ip += 2, (uint32_t)((frame->ip[-2] << 16) | frame->ip[-1]))
-#define READ_CONSTANT() (frame->function->chunk.constants.values[READ_WORD()])
+#define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_WORD()])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define BINARY_OP(ValueType, op) \
   do { \
@@ -236,8 +276,8 @@ static InterpretResult run() {
     printf(" ]");
   }
   printf("\n");
-  disassemble_instruction(&frame->function->chunk,
-    (int)(frame->ip - frame->function->chunk.code));
+  disassemble_instruction(&frame->closure->function->chunk,
+    (int)(frame->ip - frame->closure->function->chunk.code));
 #endif
 
     uint16_t instruction;
@@ -298,6 +338,18 @@ static InterpretResult run() {
         global_set_at(&vm.globals, peek(0), ind);
         break;
       }
+      case OP_GET_UPVALUE: {
+        const uint16_t slot = READ_WORD();
+        push(*frame->closure->upvalues[slot]->location);
+        break;
+      }
+      // If this slow, then everything is slow
+      case OP_SET_UPVALUE: {
+        const uint16_t slot = READ_WORD();
+        // Closure is indirection above function (maybe, :D)
+        *frame->closure->upvalues[slot]->location = peek(0);
+        break;
+      }
       case OP_EQUAL: {
         const Value b = pop();
         const Value a = pop();
@@ -332,8 +384,7 @@ static InterpretResult run() {
       case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); break;
       case OP_DIVIDE:   BINARY_OP(NUMBER_VAL, /); break;
       case OP_NOT:
-        Value *temp = vm.stack_top-1;
-        *temp = BOOL_VAL(is_falsey(*temp));
+        push(BOOL_VAL(is_falsey(pop())));
         break;
       case OP_NEGATE:
         if (!IS_NUMBER(peek(0))) {
@@ -370,8 +421,30 @@ static InterpretResult run() {
         frame = &vm.frames[vm.frame_count - 1];
         break;
       }
+      case OP_CLOSURE: {
+        ObjFunction *function = AS_FUNCTION(READ_CONSTANT());
+        const ObjClosure *closure = new_closure(function);
+        push(OBJ_VAL((Obj*)closure));
+
+        for (int i = 0; i < closure->upvalue_count; ++i) {
+          const uint16_t is_local = READ_WORD();
+          const uint16_t index = READ_WORD();
+
+          if (is_local) {
+            closure->upvalues[i] = capture_upvalue(frame->slots + index);
+          } else {
+            closure->upvalues[i] = frame->closure->upvalues[index];
+          }
+        }
+        break;
+      }
+      case OP_CLOSE_UPVALUE:
+        close_upvalues(vm.stack_top - 1);
+        pop();
+        break;
       case OP_RETURN: {
         const Value result = pop();
+        close_upvalues(frame->slots);
         if (--vm.frame_count == 0) {
           pop();
           return INTERPRET_OK;
@@ -401,7 +474,10 @@ InterpretResult interpret(const char *source) {
   if (function == NULL) return INTERPRET_COMPILE_ERROR;
 
   push(OBJ_VAL((Obj*)function));
-  call(function, 0);
+  ObjClosure *closure = new_closure(function);
+  pop();
+  push(OBJ_VAL((Obj*)closure));
+  call(closure, 0);
 
   return run();
 }

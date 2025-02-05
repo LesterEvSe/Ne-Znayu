@@ -9,7 +9,7 @@
 #define FRAMES_MAX 256 // 64
 
 typedef struct {
-  ObjFunction *function;
+  ObjClosure *closure;
 
   // ptr that pointing into the middle of the bytecode arr
   // This is Instruction Pointer (x86, x64, etc. call it PC - program counter)
@@ -30,6 +30,7 @@ typedef struct {
   // For String Interning
   // Make sure that strings with the same chars have the same memory
   Table strings;
+  ObjUpvalue *open_upvalues;
   Obj *objects;  // head of the list
 } VM;
 

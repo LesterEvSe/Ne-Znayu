@@ -7,19 +7,23 @@
 
 #define OBJ_TYPE(value)     (AS_OBJ(value)->type)
 
+#define IS_CLOSURE(value)   is_obj_type(value, OBJ_CLOSURE)
 #define IS_FUNCTION(value)  is_obj_type(value, OBJ_FUNCTION)
 #define IS_NATIVE(value)    is_obj_type(value, OBJ_NATIVE)
 #define IS_STRING(value)    is_obj_type(value, OBJ_STRING)
 
+#define AS_CLOSURE(value)   ((ObjClosure*)AS_OBJ(value))
 #define AS_FUNCTION(value)  ((ObjFunction*)AS_OBJ(value))
 #define AS_STRING(value)    ((ObjString*)AS_OBJ(value))
 #define AS_NATIVE(value)    (((ObjNative*)AS_OBJ(value))->function)
 #define AS_CSTRING(value)   (((ObjString*)AS_OBJ(value))->chars)
 
 typedef enum {
+  OBJ_CLOSURE,
   OBJ_FUNCTION,
   OBJ_NATIVE,
   OBJ_STRING,
+  OBJ_UPVALUE,
 } ObjType;
 
 // Use intrusive list here.
@@ -33,6 +37,7 @@ struct Obj {
 typedef struct {
   Obj obj;
   int arity;
+  int upvalue_count;
   Chunk chunk;
   ObjString *name;
 } ObjFunction;
@@ -56,6 +61,22 @@ struct ObjString {
   char chars[];
 };
 
+typedef struct ObjUpvalue {
+  Obj obj;
+  Value *location;
+  Value closed;
+  struct ObjUpvalue *next;
+} ObjUpvalue;
+
+typedef struct {
+  Obj obj;
+  ObjFunction *function;
+  ObjUpvalue **upvalues; // dynamic array of dynamic allocated upvalues
+  int upvalue_count; // has it in ObjFunction, but need also here for GC (Garbage Collector)
+} ObjClosure;
+
+
+ObjClosure *new_closure(ObjFunction *function);
 ObjFunction *new_function();
 ObjNative *new_native(NativeFn function);
 ObjString *string_concat(const ObjString *a, const ObjString *b);
@@ -63,9 +84,10 @@ ObjString *string_concat(const ObjString *a, const ObjString *b);
 // TODO maybe delete later
 // ObjString *take_string(char *chars, int length); // take ownership
 ObjString *copy_string(const char *chars, int length); // copy
+ObjUpvalue *new_upvalue(Value *slot);
 void print_object(Value value);
 
-static inline bool is_obj_type(Value value, ObjType type) {
+static inline bool is_obj_type(const Value value, const ObjType type) {
   return IS_OBJ(value) && AS_OBJ(value)->type == type;
 }
 
