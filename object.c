@@ -91,8 +91,8 @@ ObjString *copy_string(const char *chars, const int length) {
 
   if (interned != NULL) {
     // TODO Maybe need to delete next 2 lines
-    vm.objects = vm.objects->next;
-    reallocate(string, sizeof(ObjString) + length + 1, 0);
+    //vm.objects = vm.objects->next;
+    //reallocate(string, sizeof(ObjString) + length + 1, 0);
     return interned;
   }
 

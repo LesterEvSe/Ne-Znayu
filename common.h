@@ -12,6 +12,7 @@
 // #define DEBUG_TRACE_EXECUTION
 
 // Only 2^16, because of small size of chunk
+// Need for global vars
 #define UINT16_COUNT (UINT16_MAX + 1)
 
 #endif // PL_COMMON_H

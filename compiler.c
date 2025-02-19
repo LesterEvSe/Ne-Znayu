@@ -5,6 +5,7 @@
 #include "common.h"
 #include "compiler.h"
 #include "scanner.h"
+#include "memory.h"  // For Local and Upvalue arrays in Compiler struct
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -64,9 +65,13 @@ typedef struct Compiler {
   ObjFunction *function;
   FunctionType type;
 
-  Local locals[UINT16_COUNT];
+  // TODO change locals and upvalues to dynamic array
+  Local *locals;  // Array
+  int local_capacity;
   int local_count;
-  Upvalue upvalues[UINT16_COUNT];
+
+  Upvalue *upvalues;  // Array
+  int upvalue_capacity;
   int scope_depth;
 } Compiler;
 
@@ -198,7 +203,16 @@ static void init_compiler(Compiler *compiler, const FunctionType type) {
   compiler->enclosing = current;
   compiler->function = NULL;
   compiler->type = type;
-  compiler->local_count = compiler->scope_depth = 0;
+  compiler->local_count = 0;
+  compiler->scope_depth = 0;
+  
+  compiler->local_capacity = GROW_CAPACITY(0);
+  compiler->upvalue_capacity = GROW_CAPACITY(0);
+  compiler->locals = NULL;  // To prevent UB from compiler
+  compiler->upvalues = NULL; // Same reason
+  compiler->locals = GROW_ARRAY(Local, compiler->locals, 0, compiler->local_capacity);
+  compiler->upvalues = GROW_ARRAY(Upvalue, compiler->upvalues, 0, compiler->upvalue_capacity);
+
   compiler->function = new_function();
   current = compiler;
 
@@ -209,8 +223,15 @@ static void init_compiler(Compiler *compiler, const FunctionType type) {
 
   Local *local = &current->locals[current->local_count++];
   local->depth = local->name.length = 0;
+  local->constant = true;
   local->is_captured = false;
   local->name.start = "";
+  local->name.length = 0;
+}
+
+static void free_compiler(Compiler *compiler) {
+  FREE_ARRAY(Local, compiler->locals, compiler->local_capacity);
+  FREE_ARRAY(Upvalue, compiler->upvalues, compiler->upvalue_capacity);
 }
 
 static ObjFunction *end_compiler() {
@@ -288,9 +309,10 @@ static int add_upvalue(Compiler *compiler, const uint16_t index, const bool is_l
     }
   }
 
-  if (upvalue_count == UINT16_COUNT) {
-    error("Too many closure variables in function.");
-    return 0;
+  if (upvalue_count == compiler->upvalue_capacity) {
+    const int old_capacity = compiler->upvalue_capacity;
+    compiler->upvalue_capacity = GROW_CAPACITY(old_capacity);
+    compiler->upvalues = GROW_ARRAY(Upvalue, compiler->upvalues, old_capacity, compiler->upvalue_capacity);
   }
 
   compiler->upvalues[upvalue_count].is_local = is_local;
@@ -317,9 +339,10 @@ static int resolve_upvalue(Compiler *compiler, const Token *name) {
 }
 
 static void add_local(const Token name, const bool constant) {
-  if (current->local_count == UINT16_COUNT) {
-    error("Too many local variables in function.");
-    return;
+  if (current->local_count == current->local_capacity) {
+    const int old_capacity = current->local_capacity;
+    current->local_capacity = GROW_CAPACITY(old_capacity);
+    current->locals = GROW_ARRAY(Local, current->locals, old_capacity, current->local_capacity);
   }
 
   Local *local = &current->locals[current->local_count++];
@@ -628,6 +651,8 @@ static void function(const FunctionType type) {
     emit_byte(compiler.upvalues[i].is_local ? 1 : 0);
     emit_byte(compiler.upvalues[i].index);
   }
+
+  free_compiler(&compiler);
 }
 
 static void fun_declaration() {
@@ -832,5 +857,6 @@ ObjFunction *compile(const char *source) {
   }
 
   ObjFunction *function = end_compiler();
+  free_compiler(&compiler);
   return parser.had_error ? NULL : function;
 }

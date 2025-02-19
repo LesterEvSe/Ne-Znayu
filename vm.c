@@ -106,6 +106,7 @@ static void define_native(const char *name, const NativeFn function) {
 void init_vm() {
   vm.frame_count = 0;
   vm.capacity = GROW_CAPACITY(0);
+  vm.stack = NULL;  // To prevent UB from compiler
   vm.stack_top = vm.stack = GROW_ARRAY(Value, vm.stack, 0, vm.capacity);
 
   vm.objects = NULL;
@@ -423,7 +424,7 @@ static InterpretResult run() {
       }
       case OP_CLOSURE: {
         ObjFunction *function = AS_FUNCTION(READ_CONSTANT());
-        const ObjClosure *closure = new_closure(function);
+        ObjClosure *closure = new_closure(function);
         push(OBJ_VAL((Obj*)closure));
 
         for (int i = 0; i < closure->upvalue_count; ++i) {

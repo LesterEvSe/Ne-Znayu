@@ -48,7 +48,7 @@ def main():
         return
 
     test_command = "../build/NeZnayu"
-    results = run_tests(current_dir + "assignment", test_command)
+    results = run_tests(current_dir + "closure", test_command)
 
     print("Test results:")
     for file, output in results.items():
