@@ -122,3 +122,12 @@ ObjString *table_find_string(const Table *table, const char *chars, const int le
     index = (index + 1) % table->capacity;
   }
 }
+
+void table_remove_white(Table *table) {
+  for (int i = 0; i < table->capacity; ++i) {
+    Entry *entry = &table->entries[i];
+    if (entry->key != NULL && !entry->key->obj.is_marked) {
+      table_delete(table, entry->key);
+    }
+  }
+}

@@ -14,9 +14,14 @@
 static Obj *allocate_object(const size_t size, const ObjType type) {
   Obj *object = (Obj*)reallocate(NULL, 0, size);
   object->type = type;
+  object->is_marked = false;
 
   object->next = vm.objects;
   vm.objects = object;
+
+#ifdef DEBUG_LOG_GC
+  printf("%p allocate %zu for %d\n", (void*)object, size, type);
+#endif
   return object;
 }
 
@@ -59,6 +64,7 @@ static uint32_t hash_string(const char *key, const int length) {
   return hash;
 }
 
+// TODO maybe somewhere in next two functions can be find bug
 ObjString *string_concat(const ObjString *a, const ObjString *b) {
   const int length = a->length + b->length;
   char *temp = ALLOCATE(char, length + 1);
@@ -79,7 +85,10 @@ ObjString *string_concat(const ObjString *a, const ObjString *b) {
   string->chars[length] = '\0';
   string->hash = hash;
 
+  push(OBJ_VAL((Obj*)string));
   table_set(&vm.strings, string, NIL_VAL);
+  pop();
+
   FREE_ARRAY(char, temp, length + 1);
   return string;
 }
@@ -100,7 +109,10 @@ ObjString *copy_string(const char *chars, const int length) {
   memcpy(string->chars, chars, length);
   string->chars[length] = '\0';
 
+  push(OBJ_VAL((Obj*)string));
   table_set(&vm.strings, string, NIL_VAL);
+  pop();
+
   return string;
 }
 

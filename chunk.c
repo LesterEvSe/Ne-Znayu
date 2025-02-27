@@ -2,6 +2,7 @@
 
 #include "chunk.h"
 #include "memory.h"
+#include "vm.h"
 
 void init_chunk(Chunk *chunk) {
   chunk->length = chunk->capacity = 0;
@@ -33,6 +34,11 @@ int add_constant(Chunk *chunk, const Value value) {
   const int ind = in_array(&chunk->constants, value);
   if (ind != -1) return ind;
 
+  // push and pop fix the bug, for clear stack.
+  // If in write_value_array we realloc memory, then value missed
+  // pushed it, before it missed
+  push(value);
   write_value_array(&chunk->constants, value);
+  pop();
   return chunk->constants.length - 1;
 }

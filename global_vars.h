@@ -19,4 +19,6 @@ bool global_set(GlobalVarArray *arr, const ObjString *name, Value value, bool co
 void global_set_at(GlobalVarArray *arr, Value value, uint16_t ind);
 const GlobalVar *global_find(const GlobalVarArray *arr, const ObjString *name, uint16_t *ind);
 
+void mark_globals(GlobalVarArray *arr);
+
 #endif // PL_GLOBAL_VARS

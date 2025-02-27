@@ -111,6 +111,14 @@ void init_vm() {
 
   vm.objects = NULL;
   vm.open_upvalues = NULL;
+
+  vm.bytes_allocated = 0;
+  vm.next_gc = 1024 * 1024; // Some random number. For real language, need to tune better
+
+  vm.gray_count = 0;
+  vm.gray_capacity = 0;
+  vm.gray_stack = NULL;
+
   init_table(&vm.strings);
 
   define_native("clock", clock_native);

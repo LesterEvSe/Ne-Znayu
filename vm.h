@@ -31,7 +31,14 @@ typedef struct {
   // Make sure that strings with the same chars have the same memory
   Table strings;
   ObjUpvalue *open_upvalues;
+
+  size_t bytes_allocated;
+  size_t next_gc; // some threshold
+  
   Obj *objects;  // head of the list
+  int gray_count;
+  int gray_capacity;
+  Obj **gray_stack;
 } VM;
 
 typedef enum {

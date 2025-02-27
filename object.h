@@ -30,6 +30,7 @@ typedef enum {
 // This is similar to linked list, but not an add-on
 struct Obj {
   ObjType type;
+  bool is_marked;
   Obj *next;
 };
 

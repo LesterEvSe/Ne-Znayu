@@ -1,5 +1,6 @@
 #include <string.h>
 #include "global_vars.h"
+#include "memory.h"
 
 bool global_set(GlobalVarArray *arr, const ObjString *name, const Value value, const bool constant) {
   if (arr->length == UINT16_MAX) return false;
@@ -21,4 +22,12 @@ const GlobalVar *global_find(const GlobalVarArray *arr, const ObjString *name, u
       return &arr->values[i];
     }
   return NULL;
+}
+
+void mark_globals(GlobalVarArray *arr) {
+  for (int i = 0; i < arr->length; ++i) {
+    GlobalVar *var = &arr->values[i];
+    mark_object((Obj*)var->name);
+    mark_value(var->value);
+  }
 }
