@@ -445,6 +445,19 @@ static void call(const bool can_assign) {
   emit_bytes(OP_CALL, arg_count);
 }
 
+// TODO Restrict only for actor body, can not assign outside it.
+static void dot(const bool can_assign) {
+  consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
+  uint16_t name = identifier_constant(&parser.previous);
+
+  if (can_assign && match(TOKEN_EQUAL)) {
+    expression();
+    emit_bytes(OP_SET_PROPERTY, name);
+  } else {
+    emit_bytes(OP_GET_PROPERTY, name);
+  }
+}
+
 static void literal(const bool can_assign) {
   switch (parser.previous.type) {
     case TOKEN_FALSE: emit_byte(OP_FALSE); break;
@@ -539,7 +552,7 @@ ParseRule rules[] = {
   [TOKEN_LEFT_BRACE]    = {NULL,     NULL,   PREC_NONE},
   [TOKEN_RIGHT_BRACE]   = {NULL,     NULL,   PREC_NONE},
   [TOKEN_COMMA]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_DOT]           = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_DOT]           = {NULL,     dot,    PREC_CALL},
   [TOKEN_MINUS]         = {unary,    binary, PREC_TERM},
   [TOKEN_PLUS]          = {NULL,     binary, PREC_TERM},
   [TOKEN_SEMICOLON]     = {NULL,     NULL,   PREC_NONE},
@@ -557,7 +570,7 @@ ParseRule rules[] = {
   [TOKEN_STRING]        = {string,   NULL,   PREC_NONE},
   [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
   [TOKEN_AND]           = {NULL,     and_,   PREC_AND},
-  [TOKEN_AGENT]         = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_ACTOR]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_ELSE]          = {NULL,     NULL,   PREC_NONE},
   [TOKEN_FALSE]         = {literal,  NULL,   PREC_NONE},
   [TOKEN_FOR]           = {NULL,     NULL,   PREC_NONE},
@@ -653,6 +666,18 @@ static void function(const FunctionType type) {
   }
 
   free_compiler(&compiler);
+}
+
+static void actor_declaration() {
+  consume(TOKEN_IDENTIFIER, "Expect actor name.");
+  uint16_t name_constant = identifier_constant(&parser.previous);
+  declare_variable(true);
+
+  emit_bytes(OP_ACTOR, name_constant);
+  define_variable(name_constant, true);
+
+  consume(TOKEN_LEFT_BRACE, "Expect '{' before actor body.");
+  consume(TOKEN_RIGHT_BRACE, "Expect '}' after actor body.");
 }
 
 static void fun_declaration() {
@@ -790,7 +815,7 @@ static void synchronize() {
   while (parser.current.type != TOKEN_EOF) {
     if (parser.previous.type == TOKEN_SEMICOLON) return;
     switch (parser.current.type) {
-      case TOKEN_AGENT:
+      case TOKEN_ACTOR:
       case TOKEN_FUN:
       case TOKEN_VAL:
       case TOKEN_VAR:
@@ -810,7 +835,9 @@ static void synchronize() {
 }
 
 static void declaration() {
-  if (match(TOKEN_FUN)) {
+  if (match(TOKEN_ACTOR)) {
+    actor_declaration();
+  } else if (match(TOKEN_FUN)) {
     fun_declaration();
   } else if (match(TOKEN_VAL)) {
     var_declaration(true);  // constant

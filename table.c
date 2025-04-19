@@ -2,7 +2,6 @@
 #include <string.h>
 
 #include "memory.h"
-#include "object.h"
 #include "table.h"
 #include "value.h"
 
@@ -120,6 +119,14 @@ ObjString *table_find_string(const Table *table, const char *chars, const int le
       return entry->key;
     }
     index = (index + 1) % table->capacity;
+  }
+}
+
+void mark_table(Table *table) {
+  for (int i = 0; i < table->capacity; ++i) {
+    Entry *entry = &table->entries[i];
+    mark_object((Obj*)entry->key);
+    mark_value(entry->value);
   }
 }
 

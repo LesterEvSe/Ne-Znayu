@@ -111,9 +111,9 @@ static TokenType identifier_type() {
   // Or maybe *scanner.start
   switch (scanner.start[0]) {
     case 'a':
-      if (scanner.current - scanner.start == 1) {
+      if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
-          case 'g': return check_keyword(2, 3, "ent", TOKEN_AGENT);
+          case 'c': return check_keyword(2, 3, "tor", TOKEN_ACTOR);
           case 'n': return check_keyword(2, 1, "d", TOKEN_AND);
         }
       }

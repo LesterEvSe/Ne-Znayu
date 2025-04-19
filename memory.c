@@ -85,6 +85,11 @@ static void blacken_object(Obj *object) {
 #endif
 
   switch (object->type) {
+    case OBJ_ACTOR: {
+      ObjActor *actor = (ObjActor*)object;
+      mark_object((Obj*)actor->name);
+      break;
+    }
     case OBJ_CLOSURE: {
       ObjClosure *closure = (ObjClosure*)object;
       mark_object((Obj*)closure->function);
@@ -98,6 +103,12 @@ static void blacken_object(Obj *object) {
       ObjFunction *function = (ObjFunction*)object;
       mark_object((Obj*)function->name);
       mark_array(&function->chunk.constants);
+      break;
+    }
+    case OBJ_INSTANCE: {
+      ObjInstance *instance = (ObjInstance*)object;
+      mark_object((Obj*)instance->actor);
+      mark_table(&instance->fields);
       break;
     }
     case OBJ_UPVALUE:
@@ -117,6 +128,10 @@ static void free_object(Obj *object) {
 #endif
 
   switch (object->type) {
+    case OBJ_ACTOR: {
+      FREE(ObjActor, object);
+      break;
+    }
     case OBJ_CLOSURE: {
       const ObjClosure *closure = (ObjClosure*)object;
       // TODO need to uncomment, but there is a bug...
@@ -128,6 +143,12 @@ static void free_object(Obj *object) {
       ObjFunction *function = (ObjFunction*)object;
       free_chunk(&function->chunk);
       FREE(ObjFunction, object);
+      break;
+    }
+    case OBJ_INSTANCE: {
+      ObjInstance *instance = (ObjInstance*)object;
+      free_table(&instance->fields);
+      FREE(ObjInstance, object);
       break;
     }
     case OBJ_NATIVE:

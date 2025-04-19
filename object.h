@@ -3,24 +3,31 @@
 
 #include "common.h"
 #include "chunk.h"
+#include "table.h"
 #include "value.h"
 
 #define OBJ_TYPE(value)     (AS_OBJ(value)->type)
 
+#define IS_ACTOR(value)     is_obj_type(value, OBJ_ACTOR)
 #define IS_CLOSURE(value)   is_obj_type(value, OBJ_CLOSURE)
 #define IS_FUNCTION(value)  is_obj_type(value, OBJ_FUNCTION)
+#define IS_INSTANCE(value)  is_obj_type(value, OBJ_INSTANCE)
 #define IS_NATIVE(value)    is_obj_type(value, OBJ_NATIVE)
 #define IS_STRING(value)    is_obj_type(value, OBJ_STRING)
 
+#define AS_ACTOR(value)     ((ObjActor*)AS_OBJ(value))
 #define AS_CLOSURE(value)   ((ObjClosure*)AS_OBJ(value))
 #define AS_FUNCTION(value)  ((ObjFunction*)AS_OBJ(value))
 #define AS_STRING(value)    ((ObjString*)AS_OBJ(value))
+#define AS_INSTANCE(value)  ((ObjInstance*)AS_OBJ(value))
 #define AS_NATIVE(value)    (((ObjNative*)AS_OBJ(value))->function)
 #define AS_CSTRING(value)   (((ObjString*)AS_OBJ(value))->chars)
 
 typedef enum {
+  OBJ_ACTOR,
   OBJ_CLOSURE,
   OBJ_FUNCTION,
+  OBJ_INSTANCE,
   OBJ_NATIVE,
   OBJ_STRING,
   OBJ_UPVALUE,
@@ -76,9 +83,22 @@ typedef struct {
   int upvalue_count; // has it in ObjFunction, but need also here for GC (Garbage Collector)
 } ObjClosure;
 
+typedef struct {
+  Obj obj;
+  ObjString *name;
+} ObjActor;
 
+// TODO Maybe here add 
+typedef struct {
+  Obj obj;
+  ObjActor *actor;
+  Table fields;
+} ObjInstance;
+
+ObjActor *new_actor(ObjString *name);
 ObjClosure *new_closure(ObjFunction *function);
 ObjFunction *new_function();
+ObjInstance *new_instance(ObjActor *actor);
 ObjNative *new_native(NativeFn function);
 ObjString *string_concat(const ObjString *a, const ObjString *b);
 

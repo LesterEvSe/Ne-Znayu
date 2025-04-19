@@ -44,7 +44,7 @@ static Value *sqrt_native(const int arg_count, Value *args) {
     return NULL;
   }
 
-  // TODO check with agents or funcs
+  // TODO check with actors or funcs
   if (args[0].type == VAL_OBJ) {
     runtime_error("First argument is not a number.");
     return NULL;
@@ -183,6 +183,11 @@ static bool call_value(const Value callee, const int arg_count) {
       // Haven't this line anymore, because all functions inside closures
       // case OBJ_FUNCTION:
       //  return call(AS_FUNCTION(callee), arg_count);
+      case OBJ_ACTOR: {
+        ObjActor *actor = AS_ACTOR(callee);
+        vm.stack_top[-arg_count - 1] = OBJ_VAL((Obj*)new_instance(actor));
+        return true;
+      }
       case OBJ_CLOSURE:
         return call(AS_CLOSURE(callee), arg_count);
       case OBJ_NATIVE: {
@@ -200,8 +205,7 @@ static bool call_value(const Value callee, const int arg_count) {
     }
   }
 
-  // TODO maybe change 'agents' word
-  runtime_error("Can only call functions and agents.");
+  runtime_error("Can only call functions and actors.");
   return false;
 }
 
@@ -359,6 +363,38 @@ static InterpretResult run() {
         *frame->closure->upvalues[slot]->location = peek(0);
         break;
       }
+      case OP_GET_PROPERTY: {
+        if (!IS_INSTANCE(peek(0))) {
+          runtime_error("Only instances have properties.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        ObjInstance *instance = AS_INSTANCE(peek(0));
+        ObjString *name = READ_STRING();
+
+        Value value;
+        if (table_get(&instance->fields, name, &value)) {
+          pop(); // Instance
+          push(value);
+          break;
+        }
+
+        runtime_error("Undefined property '%s'.", name->chars);
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      case OP_SET_PROPERTY: {
+        if (!IS_INSTANCE(peek(1))) {
+          runtime_error("Only instances have fields.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        
+        ObjInstance *instance = AS_INSTANCE(peek(1));
+        table_set(&instance->fields, READ_STRING(), peek(0));
+        Value value = pop();
+        pop();
+        push(value);
+        break;
+      }
       case OP_EQUAL: {
         const Value b = pop();
         const Value a = pop();
@@ -447,6 +483,9 @@ static InterpretResult run() {
         }
         break;
       }
+      case OP_ACTOR:
+        push(OBJ_VAL((Obj*)new_actor(READ_STRING())));
+        break;
       case OP_CLOSE_UPVALUE:
         close_upvalues(vm.stack_top - 1);
         pop();

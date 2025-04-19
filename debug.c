@@ -74,6 +74,10 @@ int disassemble_instruction(const Chunk* chunk, int offset) {
       return byte_instruction("OP_GET_UPVALUE", chunk, offset);
     case OP_SET_UPVALUE:
       return byte_instruction("OP_SET_UPVALUE", chunk, offset);
+    case OP_GET_PROPERTY:
+      return constant_instruction("OP_GET_PROPERTY", chunk, offset);
+    case OP_SET_PROPERTY:
+      return constant_instruction("OP_SET_PROPERTY", chunk, offset);
     case OP_EQUAL:
       return simple_instruction("OP_EQUAL", offset);
     case OP_NOT_EQUAL:
@@ -110,7 +114,7 @@ int disassemble_instruction(const Chunk* chunk, int offset) {
       return byte_instruction("OP_CALL", chunk, offset);
     case OP_CLOSURE: {
       ++offset;
-      const uint8_t constant = chunk->code[offset++];
+      const uint16_t constant = chunk->code[offset++];
       printf("%-16s %4d ", "OP_CLOSURE", constant);
       print_value(chunk->constants.values[constant]);
       printf("\n");
@@ -126,6 +130,8 @@ int disassemble_instruction(const Chunk* chunk, int offset) {
 
       return offset;
     }
+    case OP_ACTOR:
+      return constant_instruction("OP_ACTOR", chunk, offset);
     case OP_CLOSE_UPVALUE:
       return simple_instruction("OP_CLOSE_UPVALUE", offset);
     case OP_RETURN:
