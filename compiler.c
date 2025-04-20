@@ -471,6 +471,10 @@ static void dot(const bool can_assign) {
   if (can_assign && match(TOKEN_EQUAL)) {
     expression();
     emit_bytes(OP_SET_PROPERTY, name);
+  } else if (match(TOKEN_LEFT_PAREN)) {
+    const uint16_t arg_count = argument_list();
+    emit_bytes(OP_INVOKE, name);
+    emit_byte(arg_count);
   } else {
     emit_bytes(OP_GET_PROPERTY, name);
   }
@@ -845,7 +849,7 @@ static void return_statement() {
     if (current->type == TYPE_INITIALIZER) {
       error("Can't return a value from an initializer.");
     }
-    
+
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
     emit_byte(OP_RETURN);

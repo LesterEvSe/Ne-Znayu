@@ -225,6 +225,36 @@ static bool call_value(const Value callee, const int arg_count) {
   return false;
 }
 
+// Combines OP_GET_PROPERTY and OP_CALL
+static bool invoke_from_actor(const ObjActor *actor, const ObjString *name, const int arg_count) {
+  Value message;
+  if (!table_get(&actor->messages, name, &message)) {
+    runtime_error("Undefined property '%s'.", name->chars);
+    return false;
+  }
+
+  return call(AS_CLOSURE(message), arg_count);
+}
+
+static bool invoke(const ObjString *name, const int arg_count) {
+  const Value receiver = peek(arg_count);
+
+  if (!IS_INSTANCE(receiver)) {
+    runtime_error("Only instances have messages.");
+    return false;
+  }
+
+  const ObjInstance *instance = AS_INSTANCE(receiver);
+
+  Value value;
+  if (table_get(&instance->fields, name, &value)) {
+    vm.stack_top[-arg_count - 1] = value;
+    return call_value(value, arg_count);
+  }
+
+  return invoke_from_actor(instance->actor, name, arg_count);
+}
+
 static bool bind_message(ObjActor *actor, ObjString *name) {
   Value message;
   if (!table_get(&actor->messages, name, &message)) {
@@ -501,6 +531,15 @@ static InterpretResult run() {
       case OP_CALL: {
         const int arg_count = READ_WORD();
         if (!call_value(peek(arg_count), arg_count)) {
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        frame = &vm.frames[vm.frame_count - 1];
+        break;
+      }
+      case OP_INVOKE: {
+        const ObjString *message = READ_STRING();
+        const int arg_count = READ_WORD();
+        if (!invoke(message, arg_count)) {
           return INTERPRET_RUNTIME_ERROR;
         }
         frame = &vm.frames[vm.frame_count - 1];
