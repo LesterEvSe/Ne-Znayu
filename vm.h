@@ -30,6 +30,7 @@ typedef struct {
   // For String Interning
   // Make sure that strings with the same chars have the same memory
   Table strings;
+  ObjString *init_string;
   ObjUpvalue *open_upvalues;
 
   size_t bytes_allocated;

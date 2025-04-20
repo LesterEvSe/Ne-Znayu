@@ -56,6 +56,8 @@ typedef struct {
 
 typedef enum {
   TYPE_FUNCTION,
+  TYPE_INITIALIZER,
+  TYPE_MESSAGE,
   TYPE_SCRIPT
 } FunctionType;
 
@@ -75,8 +77,13 @@ typedef struct Compiler {
   int scope_depth;
 } Compiler;
 
+typedef struct ActorCompiler {
+  struct ActorCompiler *enclosing;
+} ActorCompiler;
+
 Parser parser;
 Compiler *current = NULL;
+ActorCompiler *current_actor = NULL;
 
 // Current chunk is always the chunk owned by the function we inside compiling
 static Chunk *current_chunk() {
@@ -170,7 +177,12 @@ static int emit_jump(const uint16_t instruction) {
 }
 
 static void emit_return() {
-  emit_byte(OP_NIL);
+  if (current->type == TYPE_INITIALIZER) {
+    emit_bytes(OP_GET_LOCAL, 0);
+  } else {
+    emit_byte(OP_NIL);
+  }
+
   emit_byte(OP_RETURN);
 }
 
@@ -225,8 +237,14 @@ static void init_compiler(Compiler *compiler, const FunctionType type) {
   local->depth = local->name.length = 0;
   local->constant = true;
   local->is_captured = false;
-  local->name.start = "";
-  local->name.length = 0;
+
+  if (type != TYPE_FUNCTION) {
+    local->name.start = "this";
+    local->name.length = 4;
+  } else {
+    local->name.start = "";
+    local->name.length = 0;
+  }
 }
 
 static void free_compiler(Compiler *compiler) {
@@ -529,6 +547,14 @@ static void variable(const bool can_assign) {
   named_variable(parser.previous, can_assign);
 }
 
+static void this_(const bool can_assign) {
+  if (current_actor == NULL) {
+    error("Can't use 'this' outside of an actor.");
+    return;
+  }
+  variable(false);
+}
+
 static void unary(const bool can_assign) {
   // Write expression to the stack, then negate value in stack
   const TokenType operator_type = parser.previous.type;
@@ -581,7 +607,7 @@ ParseRule rules[] = {
   [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
   [TOKEN_SUPER]         = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_THIS]          = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_THIS]          = {this_,    NULL,   PREC_NONE},
   [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
   [TOKEN_VAL]           = {NULL,     NULL,   PREC_NONE},
   [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
@@ -668,16 +694,44 @@ static void function(const FunctionType type) {
   free_compiler(&compiler);
 }
 
+static void message() {
+  consume(TOKEN_IDENTIFIER, "Expect message name.");
+  const uint16_t constant = identifier_constant(&parser.previous);
+  
+  FunctionType type = TYPE_MESSAGE;
+  if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
+    type = TYPE_INITIALIZER;
+  }
+
+  function(type);
+  emit_bytes(OP_MESSAGE, constant);
+}
+
 static void actor_declaration() {
   consume(TOKEN_IDENTIFIER, "Expect actor name.");
+  Token actor_name = parser.previous;
   uint16_t name_constant = identifier_constant(&parser.previous);
   declare_variable(true);
 
   emit_bytes(OP_ACTOR, name_constant);
+
+  // TODO Fix. Silly to call define_variable and named_variable after that.
+  // For future, it will need for inheritance
   define_variable(name_constant, true);
 
+  ActorCompiler actor_compiler;
+  actor_compiler.enclosing = current_actor;
+  current_actor = &actor_compiler;
+
+  named_variable(actor_name, false);
   consume(TOKEN_LEFT_BRACE, "Expect '{' before actor body.");
+  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+    message();
+  }
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after actor body.");
+  emit_byte(OP_POP); // TODO No need too (maybe :D)
+
+  current_actor = current_actor->enclosing;
 }
 
 static void fun_declaration() {
@@ -788,6 +842,10 @@ static void return_statement() {
   if (match(TOKEN_SEMICOLON)) {
     emit_return();
   } else {
+    if (current->type == TYPE_INITIALIZER) {
+      error("Can't return a value from an initializer.");
+    }
+    
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
     emit_byte(OP_RETURN);

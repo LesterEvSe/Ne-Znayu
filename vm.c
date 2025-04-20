@@ -121,12 +121,16 @@ void init_vm() {
 
   init_table(&vm.strings);
 
+  vm.init_string = NULL;
+  vm.init_string = copy_string("init", 4);
+
   define_native("clock", clock_native);
   define_native("sqrt", sqrt_native);
 }
 
 void free_vm() {
   free_table(&vm.strings);
+  vm.init_string = NULL;
   free_objects();
   clear_stack();
 }
@@ -180,12 +184,24 @@ static bool call(ObjClosure *closure, const int arg_count) {
 static bool call_value(const Value callee, const int arg_count) {
   if (IS_OBJ(callee)) {
     switch (OBJ_TYPE(callee)) {
+      case OBJ_BOUND_MESSAGE: {
+        ObjBoundMessage *bound = AS_BOUND_MESSAGE(callee);
+        vm.stack_top[-arg_count - 1] = bound->receiver;
+        return call(bound->message, arg_count);
+      }
       // Haven't this line anymore, because all functions inside closures
       // case OBJ_FUNCTION:
       //  return call(AS_FUNCTION(callee), arg_count);
       case OBJ_ACTOR: {
         ObjActor *actor = AS_ACTOR(callee);
         vm.stack_top[-arg_count - 1] = OBJ_VAL((Obj*)new_instance(actor));
+        Value initializer;
+        if (table_get(&actor->messages, vm.init_string, &initializer)) {
+          return call(AS_CLOSURE(initializer), arg_count);
+        } else if (arg_count != 0) {
+          runtime_error("Expected 0 arguments but got %d.", arg_count);
+          return false;
+        }
         return true;
       }
       case OBJ_CLOSURE:
@@ -207,6 +223,19 @@ static bool call_value(const Value callee, const int arg_count) {
 
   runtime_error("Can only call functions and actors.");
   return false;
+}
+
+static bool bind_message(ObjActor *actor, ObjString *name) {
+  Value message;
+  if (!table_get(&actor->messages, name, &message)) {
+    runtime_error("Undefined property '%s'.", name->chars);
+    return false;
+  }
+
+  ObjBoundMessage *bound = new_bound_message(peek(0), AS_CLOSURE(message));
+  pop();
+  push(OBJ_VAL((Obj*)bound));
+  return true;
 }
 
 // TODO can be recoded to more elegant way with pointers
@@ -242,6 +271,15 @@ static void close_upvalues(const Value *last) {
     upvalue->location = &upvalue->closed;
     vm.open_upvalues = upvalue->next;
   }
+}
+
+// The VM trust own compiler, because only way to start it with compiler,
+// so we do not make any checks
+static void define_message(ObjString *name) {
+  Value message = peek(0);
+  ObjActor *actor = AS_ACTOR(peek(1));
+  table_set(&actor->messages, name, message);
+  pop();
 }
 
 static bool is_falsey(const Value value) {
@@ -378,9 +416,11 @@ static InterpretResult run() {
           push(value);
           break;
         }
-
-        runtime_error("Undefined property '%s'.", name->chars);
-        return INTERPRET_RUNTIME_ERROR;
+        
+        if (!bind_message(instance->actor, name)) {
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        break;
       }
       case OP_SET_PROPERTY: {
         if (!IS_INSTANCE(peek(1))) {
@@ -485,6 +525,9 @@ static InterpretResult run() {
       }
       case OP_ACTOR:
         push(OBJ_VAL((Obj*)new_actor(READ_STRING())));
+        break;
+      case OP_MESSAGE:
+        define_message(READ_STRING());
         break;
       case OP_CLOSE_UPVALUE:
         close_upvalues(vm.stack_top - 1);

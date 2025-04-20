@@ -39,6 +39,7 @@ typedef enum {
   OP_CALL,
   OP_CLOSURE,
   OP_ACTOR,
+  OP_MESSAGE,
   OP_CLOSE_UPVALUE,
   OP_RETURN,
 } OpCode;

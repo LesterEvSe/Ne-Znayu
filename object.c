@@ -25,9 +25,17 @@ static Obj *allocate_object(const size_t size, const ObjType type) {
   return object;
 }
 
+ObjBoundMessage *new_bound_message(Value receiver, ObjClosure *message) {
+  ObjBoundMessage *bound = ALLOCATE_OBJ(ObjBoundMessage, OBJ_BOUND_MESSAGE);
+  bound->receiver = receiver;
+  bound->message = message;
+  return bound;
+}
+
 ObjActor *new_actor(ObjString *name) {
   ObjActor *actor = ALLOCATE_OBJ(ObjActor, OBJ_ACTOR);
   actor->name = name;
+  init_table(&actor->messages);
   return actor;
 }
 
@@ -147,6 +155,9 @@ static void print_function(const ObjFunction *function) {
 
 void print_object(const Value value) {
   switch (OBJ_TYPE(value)) {
+    case OBJ_BOUND_MESSAGE:
+      print_function(AS_BOUND_MESSAGE(value)->message->function);
+      break;
     case OBJ_ACTOR:
       printf("%s", AS_ACTOR(value)->name->chars);
       break;
