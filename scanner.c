@@ -3,6 +3,7 @@
 #include "common.h"
 #include "scanner.h"
 
+
 // For example "print bacon;Nul" string, b - start, o - current
 typedef struct {
   const char *start;
@@ -83,8 +84,17 @@ static void skip_whitespace() {
         advance();
         break;
       case '/':  // Think of comments as whitespace
+
         if (peek_next() == '/') {
           while (peek() != '\n' && !is_at_end()) advance();
+        } else if (peek_next() == '*') {
+          while((peek() != '*' || peek_next() != '/') && !is_at_end()) advance();
+
+          // Skip */ symbols
+          if (!is_at_end()) {
+            advance();
+            advance();
+          }
         } else {
           return;
         }

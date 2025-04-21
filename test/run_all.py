@@ -1,6 +1,11 @@
 import os
 import subprocess
 
+import typer # type: ignore
+
+
+app = typer.Typer(help=('CLI for testing programming language code.'))
+
 def change_file_extensions(directory, new_extension):
     for root, _, files in os.walk(directory):
         for file in files:
@@ -34,9 +39,10 @@ def run_tests(directory, test_command):
                 # print(f"Test failed for: {file_path}\nError: {result.stderr.strip()}")
     return results
 
-def main():
+@app.command()
+def main(test: str):
     current_dir = f"{os.getcwd()}/"
-    #change_file_extensions(current_dir, ".nz")
+    # change_file_extensions(current_dir, ".nz")
 
     build_commands = [
         "mkdir -p ../build",
@@ -48,11 +54,11 @@ def main():
         return
 
     test_command = "../build/NeZnayu"
-    results = run_tests(current_dir + "closure", test_command)
+    results = run_tests(current_dir + test, test_command)
 
     print("Test results:")
     for file, output in results.items():
         print(f"{file}:\n{output}\n")
 
 if __name__ == "__main__":
-    main()
+    app()

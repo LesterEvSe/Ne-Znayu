@@ -1,5 +1,8 @@
-.vscode
-.idea
+# Dirs
+.vscode/
+.idea/
+build/
+venv/
 *-build-*
-build
+
 main

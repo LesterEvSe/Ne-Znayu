@@ -1,0 +1,27 @@
+actor Fraction {
+  init(num, den) {
+    this.num = num;
+    this.den = den;
+  }
+
+  log() {
+    print this.num / this.den;
+  }
+
+  get_int_part() {
+    return this.num;
+  }
+
+  get_this() {
+    return this;
+  }
+}
+
+
+val frac = Fraction(5, 8);
+frac.log();
+
+/*
+frac.get_this().den = 3;
+frac.log();
+*
