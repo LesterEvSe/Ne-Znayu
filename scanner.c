@@ -114,6 +114,19 @@ static TokenType check_keyword(const int start, const int length,
   return TOKEN_IDENTIFIER;
 }
 
+static bool is_send() {
+  const char *send = "send";
+
+  for (int i = 0; i < 4; ++i)
+    if (scanner.current[i] == '\0' || scanner.current[i] != send[i])
+      return false;
+  
+  // Removing an extra point for highlighting. 'send' instead of '.send'
+  scanner.start += 1; 
+  scanner.current += 4;
+  return true;
+}
+
 // Tiny trie for our grammar
 static TokenType identifier_type() {
   // Or maybe *scanner.start
@@ -141,7 +154,7 @@ static TokenType identifier_type() {
     case 'o': return check_keyword(1, 1, "r", TOKEN_OR);
     case 'p': return check_keyword(1, 4, "rint", TOKEN_PRINT);
     case 'r': return check_keyword(1, 5, "eturn", TOKEN_RETURN);
-    case 's': return check_keyword(1, 4, "uper", TOKEN_SUPER);
+    case 's': return check_keyword(1, 3, "end", TOKEN_SEND);  // associated with the is_send function
     case 't':
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
@@ -212,11 +225,12 @@ Token scan_token() {
     case '}': return make_token(TOKEN_RIGHT_BRACE);
     case ';': return make_token(TOKEN_SEMICOLON);
     case ',': return make_token(TOKEN_COMMA);
-    case '.': return make_token(TOKEN_DOT);
     case '-': return make_token(TOKEN_MINUS);
     case '+': return make_token(TOKEN_PLUS);
     case '/': return make_token(TOKEN_SLASH);
     case '*': return make_token(TOKEN_STAR);
+    case '.':
+      return make_token(is_send() ? TOKEN_SEND : TOKEN_DOT);
     case '!':
       return make_token(match('=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
     case '=':

@@ -29,7 +29,7 @@ typedef enum {
   PREC_TERM,        // + -
   PREC_FACTOR,      // * /
   PREC_UNARY,       // ! -
-  PREC_CALL,        // . ()
+  PREC_CALL,        // . () send
   PREC_PRIMARY
 } Precedence;
 
@@ -188,11 +188,10 @@ static void emit_return() {
 
 static uint16_t make_constant(const Value value) {
   const int constant = add_constant(current_chunk(), value);
-  if (constant > UINT16_MAX) {
-    error("Too many constants in one chunk.");
-    return 0;
-  }
-  return constant;
+  if (constant <= UINT16_MAX) return constant;
+  
+  error("Too many constants in one chunk.");
+  return 0;
 }
 
 static void emit_constant(const Value value) {
@@ -463,8 +462,14 @@ static void call(const bool can_assign) {
   emit_bytes(OP_CALL, arg_count);
 }
 
-// TODO Restrict only for actor body, can not assign outside it.
+// If dot, but not '.send'
 static void dot(const bool can_assign) {
+
+  if (current_actor == NULL) {
+    error_at_current("Can't use '.' without 'send' outside of an actor.");
+    return;
+  }
+
   consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
   uint16_t name = identifier_constant(&parser.previous);
 
@@ -478,6 +483,30 @@ static void dot(const bool can_assign) {
   } else {
     emit_bytes(OP_GET_PROPERTY, name);
   }
+}
+
+// If syntax '.send'
+// TODO think about it
+static void send(const bool can_assign) {
+
+  uint16_t name = identifier_constant(&parser.previous);
+
+  /*
+
+  if (current_actor == NULL) {
+    consume(TOKEN_SEND, "Expect 'send' after '.'.");
+    name = identifier_constant(&parser.previous);
+
+    if (match(TOKEN_LEFT_PAREN)) {
+      const uint16_t arg_count = argument_list();
+      emit_bytes(OP_INVOKE, name);
+      emit_byte(arg_count);
+    } else {
+      error_at_current("Expect '(' after 'send'.");
+    }
+    return;
+  }
+  */
 }
 
 static void literal(const bool can_assign) {
@@ -610,7 +639,7 @@ ParseRule rules[] = {
   [TOKEN_OR]            = {NULL,     or_,    PREC_OR},
   [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
-  [TOKEN_SUPER]         = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_SEND]          = {NULL,     send,   PREC_CALL},
   [TOKEN_THIS]          = {this_,    NULL,   PREC_NONE},
   [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
   [TOKEN_VAL]           = {NULL,     NULL,   PREC_NONE},
@@ -733,7 +762,7 @@ static void actor_declaration() {
     message();
   }
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after actor body.");
-  emit_byte(OP_POP); // TODO No need too (maybe :D)
+  emit_byte(OP_POP);  // TODO No need too (maybe :D)
 
   current_actor = current_actor->enclosing;
 }
@@ -845,15 +874,16 @@ static void return_statement() {
 
   if (match(TOKEN_SEMICOLON)) {
     emit_return();
-  } else {
-    if (current->type == TYPE_INITIALIZER) {
-      error("Can't return a value from an initializer.");
-    }
-
-    expression();
-    consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
-    emit_byte(OP_RETURN);
+    return;
   }
+  
+  if (current->type == TYPE_INITIALIZER) {
+    error("Can't return a value from an initializer.");
+  }
+
+  expression();
+  consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
+  emit_byte(OP_RETURN);
 }
 
 static void while_statement() {
