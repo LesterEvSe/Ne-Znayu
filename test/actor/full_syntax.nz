@@ -1,11 +1,21 @@
+actor Num {
+  set_num(num) {
+    this.num = num;
+  }
+
+  get_num() {
+    return this.num;
+  }
+}
+
 actor Fraction {
-  // What if here we accept another actor?
-  call_other(other) {
-    other.send(
+
+  call_other(num_actor) {
+    num_actor.send(
+      set_num,
       this.num
     );
   }
-
   
   init(num, den) {
     this.num = num;
@@ -33,49 +43,15 @@ actor Fraction {
   }
 }
 
-val actor = spawn Fraction(5, 8);
-actor.send(log);  // can add async at start
-actor.send(divide_by, 2)
-actor.send(log)
+val curr = Fraction(5, 8);
+val new = Num();
+curr.send(call_other, new);
+print new.send(get_num);
 
-val temp = actor.send(get_this)
-temp.den = 3;  // should not work
-actor.send(log)
+curr.send(log);  // can add async at start
+curr.send(divide_by, 2);
+curr.send(log);
 
-
-/*
-actor Fraction {
-  init(num, den) {
-    this.num = num;
-    this.den = den;
-  }
-
-  get_num() {
-    return this.num;
-  }
-
-  get_den() {
-    return this.den;
-  }
-
-  get_this() {
-    return this;
-  }
-
-  log() {
-    print this.num / this.den;
-  }
-
-  divide_by(num) {
-    this.den = this.den * num;
-  }
-}
-
-val frac = Fraction(5, 8);
-frac.log();
-frac.divide_by(2);
-frac.log();
-
-frac.get_this().num = 0;
-frac.log();
-*/
+val temp = curr.send(get_this);
+//temp.den = 3;  // should not work
+temp.send(log);

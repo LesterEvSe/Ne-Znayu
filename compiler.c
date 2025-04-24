@@ -489,24 +489,22 @@ static void dot(const bool can_assign) {
 // TODO think about it
 static void send(const bool can_assign) {
 
-  uint16_t name = identifier_constant(&parser.previous);
-
-  /*
-
-  if (current_actor == NULL) {
-    consume(TOKEN_SEND, "Expect 'send' after '.'.");
-    name = identifier_constant(&parser.previous);
-
-    if (match(TOKEN_LEFT_PAREN)) {
-      const uint16_t arg_count = argument_list();
-      emit_bytes(OP_INVOKE, name);
-      emit_byte(arg_count);
-    } else {
-      error_at_current("Expect '(' after 'send'.");
-    }
+  if (!match(TOKEN_LEFT_PAREN)) {
+    error_at_current("Expect '(' after 'send'.");
     return;
   }
-  */
+
+  consume(TOKEN_IDENTIFIER, "Expect message name after '('.");
+  uint16_t name = identifier_constant(&parser.previous);
+
+  if (match(TOKEN_COMMA))
+    ; // Skip comma if exist
+  
+  const uint16_t arg_count = argument_list();
+
+  // TODO think about function call
+  emit_bytes(OP_INVOKE, name);
+  emit_byte(arg_count);
 }
 
 static void literal(const bool can_assign) {
