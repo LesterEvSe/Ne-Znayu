@@ -18,8 +18,13 @@ actor Fraction {
   }
   
   init(num, den) {
+    fun smth() {
+      print "hi";
+    }
+
     this.num = num;
     this.den = den;
+    smth();
   }
 
   get_num() {

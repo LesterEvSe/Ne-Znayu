@@ -476,17 +476,14 @@ static void dot(const bool can_assign) {
   if (can_assign && match(TOKEN_EQUAL)) {
     expression();
     emit_bytes(OP_SET_PROPERTY, name);
-  } else if (match(TOKEN_LEFT_PAREN)) {
-    const uint16_t arg_count = argument_list();
-    emit_bytes(OP_INVOKE, name);
-    emit_byte(arg_count);
+  } else if (check(TOKEN_LEFT_PAREN)) {
+    error_at_current("Can't call message without 'send' keyword.");
   } else {
     emit_bytes(OP_GET_PROPERTY, name);
   }
 }
 
 // If syntax '.send'
-// TODO think about it
 static void send(const bool can_assign) {
 
   if (!match(TOKEN_LEFT_PAREN)) {
@@ -496,13 +493,10 @@ static void send(const bool can_assign) {
 
   consume(TOKEN_IDENTIFIER, "Expect message name after '('.");
   uint16_t name = identifier_constant(&parser.previous);
-
-  if (match(TOKEN_COMMA))
-    ; // Skip comma if exist
+  match(TOKEN_COMMA);
   
-  const uint16_t arg_count = argument_list();
-
   // TODO think about function call
+  const uint16_t arg_count = argument_list();
   emit_bytes(OP_INVOKE, name);
   emit_byte(arg_count);
 }
