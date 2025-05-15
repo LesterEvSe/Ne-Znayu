@@ -1,62 +1,26 @@
-actor Num {
-  set_num(num) {
-    this.num = num;
-  }
-
-  get_num() {
-    return this.num;
-  }
-}
-
 actor Fraction {
-
-  call_other(num_actor) {
-    num_actor.send(
-      set_num,
-      this.num
-    );
-  }
-  
   init(num, den) {
-    fun smth() {
-      print "hi";
-    }
-
     this.num = num;
     this.den = den;
-    smth();
+  }
+  
+  get_and_divide_by(divisor, sender) {
+    val result = this.num / divisor;
+    
+    // Send result back
+    sender.send(reply, result);
+  }
+  
+  reply(_value) {
+    print 5 + _value;  // Expect: 5 + (9 / 2) = 9.5
   }
 
-  get_num() {
-    return this.num;
-  }
-
-  get_den() {
-    return this.den;
-  }
-
-  get_this() {
-    return this;
-  }
-
-  log() {
-    print this.num / this.den;
-  }
-
-  divide_by(num) {
-    this.den = this.den * num;
+  // Can not return from an actor
+  get_fraction() {
+    return this.num / this.den;
   }
 }
 
-val curr = Fraction(5, 8);
-val new = Num();
-curr.send(call_other, new);
-print new.send(get_num);
 
-curr.send(log);  // can add async at start
-curr.send(divide_by, 2);
-curr.send(log);
-
-val temp = curr.send(get_this);
-//temp.den = 3;  // should not work
-temp.send(log);
+val frac = Fraction(9, 4);
+frac.send(get_and_divide_by, 2, frac);

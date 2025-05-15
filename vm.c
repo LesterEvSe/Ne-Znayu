@@ -121,6 +121,7 @@ void init_vm() {
 
   init_table(&vm.strings);
 
+  // Because during copy_string, GC can be called
   vm.init_string = NULL;
   vm.init_string = copy_string("init", 4);
 
@@ -189,13 +190,11 @@ static bool call_value(const Value callee, const int arg_count) {
         vm.stack_top[-arg_count - 1] = bound->receiver;
         return call(bound->message, arg_count);
       }
-      // Haven't this line anymore, because all functions inside closures
-      // case OBJ_FUNCTION:
-      //  return call(AS_FUNCTION(callee), arg_count);
-      case OBJ_ACTOR: {
+      case OBJ_ACTOR: {  // Initializer or error
         ObjActor *actor = AS_ACTOR(callee);
         vm.stack_top[-arg_count - 1] = OBJ_VAL((Obj*)new_instance(actor));
         Value initializer;
+
         if (table_get(&actor->messages, vm.init_string, &initializer)) {
           return call(AS_CLOSURE(initializer), arg_count);
         } else if (arg_count != 0) {
@@ -204,6 +203,7 @@ static bool call_value(const Value callee, const int arg_count) {
         }
         return true;
       }
+      // All OBJ_FUNCTION inside closures
       case OBJ_CLOSURE:
         return call(AS_CLOSURE(callee), arg_count);
       case OBJ_NATIVE: {
@@ -245,13 +245,6 @@ static bool invoke(const ObjString *name, const int arg_count) {
   }
 
   const ObjInstance *instance = AS_INSTANCE(receiver);
-
-  Value value;
-  if (table_get(&instance->fields, name, &value)) {
-    vm.stack_top[-arg_count - 1] = value;
-    return call_value(value, arg_count);
-  }
-
   return invoke_from_actor(instance->actor, name, arg_count);
 }
 

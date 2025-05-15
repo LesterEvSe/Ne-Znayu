@@ -69,7 +69,6 @@ static Token error_token(const char *message) {
   return token;
 }
 
-// TODO add multi-line comments
 static void skip_whitespace() {
   for (;;) {
     const char c = peek();
@@ -89,7 +88,8 @@ static void skip_whitespace() {
           while (peek() != '\n' && !is_at_end()) advance();
         } else if (peek_next() == '*') {
           while((peek() != '*' || peek_next() != '/') && !is_at_end()) advance();
-
+          
+          // TODO test and fix multi-line comments
           // Skip */ symbols
           if (!is_at_end()) {
             advance();

@@ -56,7 +56,6 @@ typedef struct {
 
 typedef enum {
   TYPE_FUNCTION,
-  TYPE_INITIALIZER,
   TYPE_MESSAGE,
   TYPE_SCRIPT
 } FunctionType;
@@ -177,7 +176,7 @@ static int emit_jump(const uint16_t instruction) {
 }
 
 static void emit_return() {
-  if (current->type == TYPE_INITIALIZER) {
+  if (current->type == TYPE_MESSAGE) {
     emit_bytes(OP_GET_LOCAL, 0);
   } else {
     emit_byte(OP_NIL);
@@ -464,7 +463,6 @@ static void call(const bool can_assign) {
 
 // If dot, but not '.send'
 static void dot(const bool can_assign) {
-
   if (current_actor == NULL) {
     error_at_current("Can't use '.' without 'send' outside of an actor.");
     return;
@@ -485,7 +483,6 @@ static void dot(const bool can_assign) {
 
 // If syntax '.send'
 static void send(const bool can_assign) {
-
   if (!match(TOKEN_LEFT_PAREN)) {
     error_at_current("Expect '(' after 'send'.");
     return;
@@ -723,12 +720,7 @@ static void message() {
   consume(TOKEN_IDENTIFIER, "Expect message name.");
   const uint16_t constant = identifier_constant(&parser.previous);
   
-  FunctionType type = TYPE_MESSAGE;
-  if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
-    type = TYPE_INITIALIZER;
-  }
-
-  function(type);
+  function(TYPE_MESSAGE);
   emit_bytes(OP_MESSAGE, constant);
 }
 
@@ -869,8 +861,8 @@ static void return_statement() {
     return;
   }
   
-  if (current->type == TYPE_INITIALIZER) {
-    error("Can't return a value from an initializer.");
+  if (current->type == TYPE_MESSAGE) {
+    error("Can't return a value from a message.");
   }
 
   expression();
