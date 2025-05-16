@@ -8,7 +8,6 @@
 
 #define OBJ_TYPE(value)         (AS_OBJ(value)->type)
 
-#define IS_BOUND_MESSAGE(value) is_obj_type(value, OBJ_BOUND_MESSAGE)
 #define IS_ACTOR(value)         is_obj_type(value, OBJ_ACTOR)
 #define IS_CLOSURE(value)       is_obj_type(value, OBJ_CLOSURE)
 #define IS_FUNCTION(value)      is_obj_type(value, OBJ_FUNCTION)
@@ -16,7 +15,6 @@
 #define IS_NATIVE(value)        is_obj_type(value, OBJ_NATIVE)
 #define IS_STRING(value)        is_obj_type(value, OBJ_STRING)
 
-#define AS_BOUND_MESSAGE(value) ((ObjBoundMessage*)AS_OBJ(value))
 #define AS_ACTOR(value)         ((ObjActor*)AS_OBJ(value))
 #define AS_CLOSURE(value)       ((ObjClosure*)AS_OBJ(value))
 #define AS_FUNCTION(value)      ((ObjFunction*)AS_OBJ(value))
@@ -26,7 +24,6 @@
 #define AS_CSTRING(value)       (((ObjString*)AS_OBJ(value))->chars)
 
 typedef enum {
-  OBJ_BOUND_MESSAGE,
   OBJ_ACTOR,
   OBJ_CLOSURE,
   OBJ_FUNCTION,
@@ -99,13 +96,6 @@ typedef struct {
   Table fields;
 } ObjInstance;
 
-typedef struct {
-  Obj obj;
-  Value receiver;
-  ObjClosure *message;
-} ObjBoundMessage;
-
-ObjBoundMessage *new_bound_message(Value receiver, ObjClosure *message);
 ObjActor *new_actor(ObjString *name);
 ObjClosure *new_closure(ObjFunction *function);
 ObjFunction *new_function();

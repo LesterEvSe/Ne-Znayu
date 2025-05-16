@@ -186,11 +186,6 @@ static bool call(ObjClosure *closure, const int arg_count) {
 static bool call_value(const Value callee, const int arg_count) {
   if (IS_OBJ(callee)) {
     switch (OBJ_TYPE(callee)) {
-      case OBJ_BOUND_MESSAGE: {
-        ObjBoundMessage *bound = AS_BOUND_MESSAGE(callee);
-        vm.stack_top[-arg_count - 1] = bound->receiver;
-        return call(bound->message, arg_count);
-      }
       case OBJ_ACTOR: {  // Initializer or error
         ObjActor *actor = AS_ACTOR(callee);
         vm.stack_top[-arg_count - 1] = OBJ_VAL((Obj*)new_instance(actor));
@@ -247,19 +242,6 @@ static bool invoke(const ObjString *name, const int arg_count) {
 
   const ObjInstance *instance = AS_INSTANCE(receiver);
   return invoke_from_actor(instance->actor, name, arg_count);
-}
-
-static bool bind_message(ObjActor *actor, ObjString *name) {
-  Value message;
-  if (!table_get(&actor->messages, name, &message)) {
-    runtime_error("Undefined property '%s'.", name->chars);
-    return false;
-  }
-
-  ObjBoundMessage *bound = new_bound_message(peek(0), AS_CLOSURE(message));
-  pop();
-  push(OBJ_VAL((Obj*)bound));
-  return true;
 }
 
 // TODO can be recoded to more elegant way with pointers
@@ -438,11 +420,6 @@ static InterpretResult run() {
         if (table_get(&instance->fields, name, &value)) {
           pop(); // Instance
           push(value);
-          break;
-        }
-        
-        if (!bind_message(instance->actor, name)) {
-          return INTERPRET_RUNTIME_ERROR;
         }
         break;
       }

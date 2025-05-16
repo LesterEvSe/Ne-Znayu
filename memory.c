@@ -85,12 +85,6 @@ static void blacken_object(Obj *object) {
 #endif
 
   switch (object->type) {
-    case OBJ_BOUND_MESSAGE: {
-      ObjBoundMessage *bound = (ObjBoundMessage*)object;
-      mark_value(bound->receiver);
-      mark_object((Obj*)bound->message);
-      break;
-    }
     case OBJ_ACTOR: {
       ObjActor *actor = (ObjActor*)object;
       mark_object((Obj*)actor->name);
@@ -135,9 +129,6 @@ static void free_object(Obj *object) {
 #endif
 
   switch (object->type) {
-    case OBJ_BOUND_MESSAGE:
-      FREE(ObjBoundMessage, object);
-      break;
     case OBJ_ACTOR: {
       ObjActor *actor = (ObjActor*)object;
       free_table(&actor->messages);

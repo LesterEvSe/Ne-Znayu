@@ -33,4 +33,3 @@ actor Fraction {
 
 val frac = Fraction(9, 4);
 frac.send(get_and_divide_by, 2, frac);
-smth();

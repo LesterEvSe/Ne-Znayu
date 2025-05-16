@@ -31,7 +31,7 @@ typedef struct {
   // Make sure that strings with the same chars have the same memory
   Table strings;
   
-  ObjString *init_string;
+  ObjString *init_string;  // init keyword for actors
   ObjUpvalue *open_upvalues;
 
   size_t bytes_allocated;
