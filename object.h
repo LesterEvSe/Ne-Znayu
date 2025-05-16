@@ -86,13 +86,13 @@ typedef struct {
   int upvalue_count; // has it in ObjFunction, but need also here for GC (Garbage Collector)
 } ObjClosure;
 
+// TODO queue of messages and VM
 typedef struct {
   Obj obj;
   ObjString *name;
   Table messages;
 } ObjActor;
 
-// TODO Maybe here add 
 typedef struct {
   Obj obj;
   ObjActor *actor;

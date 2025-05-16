@@ -1,3 +1,12 @@
+val b = 17;
+
+fun get_global(count) {
+  val temp = count;
+  print "Number of variables: " + temp;
+
+  return b;
+}
+
 actor Fraction {
   init(num, den) {
     this.num = num;
@@ -5,6 +14,10 @@ actor Fraction {
   }
   
   get_and_divide_by(divisor, sender) {
+    fun smth() {
+      print this.num;
+    }
+    smth();
     val result = this.num / divisor;
     
     // Send result back
@@ -12,15 +25,12 @@ actor Fraction {
   }
   
   reply(_value) {
-    print 5 + _value;  // Expect: 5 + (9 / 2) = 9.5
-  }
-
-  // Can not return from an actor
-  get_fraction() {
-    return this.num / this.den;
+    val temp = b;
+    print get_global("3") + _value;
   }
 }
 
 
 val frac = Fraction(9, 4);
 frac.send(get_and_divide_by, 2, frac);
+smth();

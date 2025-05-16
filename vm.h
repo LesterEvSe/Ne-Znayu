@@ -6,7 +6,7 @@
 #include "value.h"
 #include "global_vars.h"
 
-#define FRAMES_MAX 256 // 64
+#define FRAMES_MAX 256
 
 typedef struct {
   ObjClosure *closure;

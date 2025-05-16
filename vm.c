@@ -63,7 +63,7 @@ static Value *sqrt_native(const int arg_count, Value *args) {
 
 
 static void clear_stack() {
-  vm.stack_top = vm.stack = FREE_ARRAY(Value, vm.stack, vm.capacity); // GROW_ARRAY(Value, vm.stack, vm.capacity, 0);
+  vm.stack_top = vm.stack = FREE_ARRAY(Value, vm.stack, vm.capacity);
   vm.capacity = vm.frame_count = 0;
   vm.open_upvalues = NULL;
 }
@@ -173,6 +173,7 @@ static bool call(ObjClosure *closure, const int arg_count) {
     return false;
   }
 
+  // TODO Maybe function for actor call frame
   CallFrame *frame = &vm.frames[vm.frame_count++];
   frame->closure = closure;
   frame->ip = closure->function->chunk.code;
