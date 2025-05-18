@@ -14,6 +14,8 @@ set(PROJECT_SOURCES
     object.c
     table.c
     global_vars.c
+    queue.c
+    actor_vm.c
 )
 
 set(PROJECT_HEADERS

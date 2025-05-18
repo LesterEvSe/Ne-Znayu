@@ -68,8 +68,15 @@ static void run_file(const char *path) {
   if (result == INTERPRET_RUNTIME_ERROR) exit(70);
 }
 
+int a = 5;
+
 int main(const int argc, char *argv[]) {
-  init_vm();
+  printf("a = %d\n", a);
+  int a = 18;
+  printf("a = %d", a);
+
+  VM *vm = (VM*)malloc(sizeof(VM));
+  init_vm(vm);
 
   if (argc == 1) {
     repl();
@@ -80,6 +87,6 @@ int main(const int argc, char *argv[]) {
     exit(64);
   }
 
-  free_vm();
+  free_vm(vm);
   return 0;
 }

@@ -5,4 +5,4 @@ actor Foo {
 }
 
 var baz = Foo();
-baz.inFoo(); // expect: in foo
+baz.send(inFoo); // expect: in foo
