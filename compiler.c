@@ -66,7 +66,6 @@ typedef struct Compiler {
   ObjFunction *function;
   FunctionType type;
 
-  // TODO change locals and upvalues to dynamic array
   Local *locals;  // Array
   int local_capacity;
   int local_count;
@@ -220,15 +219,15 @@ static void init_compiler(Compiler *compiler, const FunctionType type) {
   compiler->upvalue_capacity = GROW_CAPACITY(0);
   compiler->locals = NULL;  // To prevent UB from compiler
   compiler->upvalues = NULL; // Same reason
-  compiler->locals = GROW_ARRAY(Local, compiler->locals, 0, compiler->local_capacity);
-  compiler->upvalues = GROW_ARRAY(Upvalue, compiler->upvalues, 0, compiler->upvalue_capacity);
+  compiler->locals = GROW_ARRAY((VM*)&main_vm, Local, compiler->locals, 0, compiler->local_capacity);
+  compiler->upvalues = GROW_ARRAY((VM*)&main_vm, Upvalue, compiler->upvalues, 0, compiler->upvalue_capacity);
 
-  compiler->function = new_function();
+  compiler->function = new_function((VM*)&main_vm);
   current = compiler;
 
   // Function live like global vars, so need own copy
   if (type != TYPE_SCRIPT) {
-    current->function->name = copy_string(parser.previous.start, parser.previous.length);
+    current->function->name = copy_string((VM*)&main_vm, parser.previous.start, parser.previous.length);
   }
 
   Local *local = &current->locals[current->local_count++];
@@ -246,8 +245,8 @@ static void init_compiler(Compiler *compiler, const FunctionType type) {
 }
 
 static void free_compiler(Compiler *compiler) {
-  FREE_ARRAY(Local, compiler->locals, compiler->local_capacity);
-  FREE_ARRAY(Upvalue, compiler->upvalues, compiler->upvalue_capacity);
+  FREE_ARRAY((VM*)&main_vm, Local, compiler->locals, compiler->local_capacity);
+  FREE_ARRAY((VM*)&main_vm, Upvalue, compiler->upvalues, compiler->upvalue_capacity);
 }
 
 static ObjFunction *end_compiler() {
@@ -292,7 +291,7 @@ static ParseRule *get_rule(TokenType type);
 static void parse_precedence(Precedence precedence);
 
 static uint16_t identifier_constant(const Token *name) {
-  return make_constant(OBJ_VAL((Obj*)copy_string(name->start, name->length)));
+  return make_constant(OBJ_VAL((Obj*)copy_string((VM*)&main_vm, name->start, name->length)));
 }
 
 static bool identifiers_equal(const Token *a, const Token *b) {
@@ -328,7 +327,7 @@ static int add_upvalue(Compiler *compiler, const uint16_t index, const bool is_l
   if (upvalue_count == compiler->upvalue_capacity) {
     const int old_capacity = compiler->upvalue_capacity;
     compiler->upvalue_capacity = GROW_CAPACITY(old_capacity);
-    compiler->upvalues = GROW_ARRAY(Upvalue, compiler->upvalues, old_capacity, compiler->upvalue_capacity);
+    compiler->upvalues = GROW_ARRAY((VM*)&main_vm, Upvalue, compiler->upvalues, old_capacity, compiler->upvalue_capacity);
   }
 
   compiler->upvalues[upvalue_count].is_local = is_local;
@@ -358,7 +357,7 @@ static void add_local(const Token name, const bool constant) {
   if (current->local_count == current->local_capacity) {
     const int old_capacity = current->local_capacity;
     current->local_capacity = GROW_CAPACITY(old_capacity);
-    current->locals = GROW_ARRAY(Local, current->locals, old_capacity, current->local_capacity);
+    current->locals = GROW_ARRAY((VM*)&main_vm, Local, current->locals, old_capacity, current->local_capacity);
   }
 
   Local *local = &current->locals[current->local_count++];
@@ -532,7 +531,7 @@ static void or_(const bool can_assign) {
 
 // If language supported characters like \n or another, then we'd translate those here
 static void string(const bool can_assign) {
-  emit_constant(OBJ_VAL((Obj*)copy_string(parser.previous.start + 1,
+  emit_constant(OBJ_VAL((Obj*)copy_string((VM*)&main_vm, parser.previous.start + 1,
                                     parser.previous.length - 2)));
 }
 
@@ -967,7 +966,7 @@ ObjFunction *compile(const char *source) {
 void mark_compiler_roots() {
   Compiler *compiler = current;
   while (compiler != NULL) {
-    mark_object((Obj*)compiler->function);
+    mark_object((VM*)&main_vm, (Obj*)compiler->function);
     compiler = compiler->enclosing;
   }
 }

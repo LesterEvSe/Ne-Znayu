@@ -27,7 +27,7 @@ const GlobalVar *global_find(const GlobalVarArray *arr, const ObjString *name, u
 void mark_globals(GlobalVarArray *arr) {
   for (int i = 0; i < arr->length; ++i) {
     GlobalVar *var = &arr->values[i];
-    mark_object((Obj*)var->name);
-    mark_value(var->value);
+    mark_object((VM*)&main_vm, (Obj*)var->name);
+    mark_value((VM*)&main_vm, var->value);
   }
 }

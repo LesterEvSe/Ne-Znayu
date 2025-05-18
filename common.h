@@ -12,7 +12,7 @@
 //#define DEBUG_TRACE_EXECUTION
 
 #define DEBUG_STRESS_GC  // If set, start as possible as can
-// #define DEBUG_LOG_GC
+//#define DEBUG_LOG_GC
 
 // Only 2^16, because of small size of chunk
 // Need for global vars

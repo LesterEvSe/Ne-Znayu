@@ -17,7 +17,7 @@
 #endif
 
 // Can be recoded with pointer variable, which pass from main func
-VM vm;
+MainVM main_vm;
 
 static void runtime_error(const char *format, ...);
 
@@ -103,7 +103,7 @@ static void define_native(const char *name, const NativeFn function) {
   pop();
 }
 
-void init_vm() {
+void init_vm(VM *temp) {
   vm.frame_count = 0;
   vm.capacity = GROW_CAPACITY(0);
   vm.stack = NULL;  // To prevent UB from compiler
@@ -129,7 +129,7 @@ void init_vm() {
   define_native("sqrt", sqrt_native);
 }
 
-void free_vm() {
+void free_vm(VM *temp) {
   free_table(&vm.strings);
   vm.init_string = NULL;
   free_objects();

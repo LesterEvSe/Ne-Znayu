@@ -6,6 +6,8 @@
 #include "table.h"
 #include "value.h"
 
+typedef struct VM VM;
+
 #define OBJ_TYPE(value)         (AS_OBJ(value)->type)
 
 #define IS_ACTOR(value)         is_obj_type(value, OBJ_ACTOR)
@@ -97,16 +99,16 @@ typedef struct {
 } ObjInstance;
 
 ObjActor *new_actor(ObjString *name);
-ObjClosure *new_closure(ObjFunction *function);
-ObjFunction *new_function();
-ObjInstance *new_instance(ObjActor *actor);
+ObjClosure *new_closure(VM *vm, ObjFunction *function);
+ObjFunction *new_function(VM *vm);
+ObjInstance *new_instance(VM *vm, ObjActor *actor);
 ObjNative *new_native(NativeFn function);
-ObjString *string_concat(const ObjString *a, const ObjString *b);
+ObjString *string_concat(VM *vm, const ObjString *a, const ObjString *b);
 
 // TODO maybe delete later
 // ObjString *take_string(char *chars, int length); // take ownership
-ObjString *copy_string(const char *chars, int length); // copy
-ObjUpvalue *new_upvalue(Value *slot);
+ObjString *copy_string(VM *vm, const char *chars, int length); // copy
+ObjUpvalue *new_upvalue(VM *vm, Value *slot);
 void print_object(Value value);
 
 static inline bool is_obj_type(const Value value, const ObjType type) {
