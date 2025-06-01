@@ -8,7 +8,7 @@
 #define true 1
 #define false 0
 
-#define DEBUG_PRINT_CODE
+//#define DEBUG_PRINT_CODE
 //#define DEBUG_TRACE_EXECUTION
 
 #define DEBUG_STRESS_GC  // If set, start as possible as can

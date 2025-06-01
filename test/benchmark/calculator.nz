@@ -1,0 +1,39 @@
+fun Point(_x, _y) {
+  val x = _x;
+  val y = _y;
+
+  fun messages(message) {
+    fun get_x() {
+      return x;
+    }
+
+    fun get_y() {
+      return y;
+    }
+
+    fun add_point(point) {
+      return Point(x + point("get_x")(), y + point("get_y")());
+    }
+
+    if (message == "get_x") {
+      return get_x;
+    } else if (message == "get_y") {
+      return get_y;
+    } else if (message == "add_point") {
+      return add_point;
+    } else {
+      return nil;
+    }
+  }
+  return messages;
+}
+
+for (var i = 0; i < 4; i = i+1) {
+  val point1 = Point(i, i+2);
+  val point2 = Point(1, -3);
+  
+  val result = point1("add_point")(point2);
+  print result("get_x")();
+  print result("get_y")();
+  print "";
+}

@@ -1,0 +1,25 @@
+actor TreeNode {
+  init(curr, left, right) {
+    this.curr = curr;
+    this.left = left;
+    this.right = right;
+  }
+
+  dfs() {
+    print this.curr;
+    if (this.left != nil) {
+      this.left.send(dfs);
+    }
+
+    if (this.right != nil) {
+      this.right.send(dfs);
+    }
+  }
+}
+
+val third = TreeNode(3, nil, nil);
+val fourth = TreeNode(4, nil, nil);
+val fifth = TreeNode(5, nil, nil);
+val second = TreeNode(2, fourth, fifth);
+val first = TreeNode(1, second, third);
+first.send(dfs);
