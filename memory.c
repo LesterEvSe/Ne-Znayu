@@ -40,8 +40,8 @@ void *reallocate(void *pointer, const size_t old_size, const size_t new_size) {
 }
 
 void mark_object(Obj *object) {
-  if (object == NULL) return;
-  if (object->is_marked) return;  // Because can have cycle of gray objects
+  // Because can have cycle of gray objects
+  if (object == NULL || object->is_marked) return;
 
 #ifdef DEBUG_LOG_GC
   printf("%p mark ", (void*)object);

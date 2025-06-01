@@ -83,7 +83,6 @@ typedef struct {
   int upvalue_count; // has it in ObjFunction, but need also here for GC (Garbage Collector)
 } ObjClosure;
 
-// TODO queue of messages and VM
 typedef struct {
   Obj obj;
   ObjString *name;
@@ -103,9 +102,7 @@ ObjInstance *new_instance(ObjActor *actor);
 ObjNative *new_native(NativeFn function);
 ObjString *string_concat(const ObjString *a, const ObjString *b);
 
-// TODO maybe delete later
-// ObjString *take_string(char *chars, int length); // take ownership
-ObjString *copy_string(const char *chars, int length); // copy
+ObjString *copy_string(const char *chars, int length);
 ObjUpvalue *new_upvalue(Value *slot);
 void print_object(Value value);
 

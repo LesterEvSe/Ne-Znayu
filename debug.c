@@ -49,7 +49,7 @@ static int jump_instruction(const char *name, const int sign,
 }
 
 // Need to output some additional info about name of variables (for better debugger)
-int disassemble_instruction(const Chunk* chunk, int offset) {
+int disassemble_instruction(const Chunk *chunk, int offset) {
   printf("%04d ", offset);
   if (offset > 0 && chunk->lines[offset] == chunk->lines[offset - 1]) {
     printf("   | ");

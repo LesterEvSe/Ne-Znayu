@@ -66,7 +66,6 @@ typedef struct Compiler {
   ObjFunction *function;
   FunctionType type;
 
-  // TODO change locals and upvalues to dynamic array
   Local *locals;  // Array
   int local_capacity;
   int local_count;
@@ -236,7 +235,7 @@ static void init_compiler(Compiler *compiler, const FunctionType type) {
   local->constant = true;
   local->is_captured = false;
 
-  if (type != TYPE_FUNCTION) {
+  if (type == TYPE_MESSAGE) {
     local->name.start = "this";
     local->name.length = 4;
   } else {
@@ -705,7 +704,6 @@ static void function(const FunctionType type) {
   block();
 
   ObjFunction *function = end_compiler();
-  //emit_bytes(OP_CONSTANT, make_constant(OBJ_VAL((Obj*)function)));
   emit_bytes(OP_CLOSURE, make_constant(OBJ_VAL((Obj*)function)));
 
   for (int i = 0; i < function->upvalue_count; ++i) {
@@ -855,14 +853,14 @@ static void return_statement() {
   if (current->type == TYPE_SCRIPT) {
     error("Can't return from top-level code.");
   }
+  
+  if (current->type == TYPE_MESSAGE) {
+    error("Can't return a value from a message.");
+  }
 
   if (match(TOKEN_SEMICOLON)) {
     emit_return();
     return;
-  }
-  
-  if (current->type == TYPE_MESSAGE) {
-    error("Can't return a value from a message.");
   }
 
   expression();
@@ -946,7 +944,6 @@ static void statement() {
   }
 }
 
-// Temporary code, work due all other time
 ObjFunction *compile(const char *source) {
   init_scanner(source);
   Compiler compiler;

@@ -4,7 +4,7 @@
 #include "scanner.h"
 
 
-// For example "print bacon;Nul" string, b - start, o - current
+// For example statement "print bacon;" here letter b - start, o - current
 typedef struct {
   const char *start;
   const char *current;
